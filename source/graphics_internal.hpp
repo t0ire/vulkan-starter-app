@@ -28,6 +28,8 @@ struct Context {
 struct FrameData {
 	VkFramebuffer framebuffer;
 	VkCommandBuffer command_buffer;
+	VkRenderPass render_pass;
+	VkExtent2D extent;
 };
 
 extern Context context;
@@ -39,5 +41,6 @@ void resize(uint32_t width, uint32_t height);
 
 FrameData prepare();
 void submitAndPresent();
+void finish(FrameData& fd);
 
 } // namespace graphics::internal

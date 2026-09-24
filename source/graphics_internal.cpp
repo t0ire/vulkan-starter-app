@@ -133,7 +133,7 @@ bool initializeImGUI(GLFWwindow* const window) {
 	}
 
 	int width = 0, height = 0;
-	glfwGetWindowSize(window, &width, &height);
+	glfwGetFramebufferSize(window, &width, &height);
 
 	const uint32_t swapchain_images_count = uint32_t(vk_swapchain_images.size());
 
@@ -269,7 +269,7 @@ bool rebuildSwapchain(uint32_t width, uint32_t height) {
 	const VkImageCreateInfo depth_buffer = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_2D,
-		.format = VK_FORMAT_D24_UNORM_S8_UINT,
+		.format = VK_FORMAT_D32_SFLOAT_S8_UINT,
 		.extent = { uint32_t(width), uint32_t(height), 1 },
 		.mipLevels = 1,
 		.arrayLayers = 1,
@@ -295,7 +295,7 @@ bool rebuildSwapchain(uint32_t width, uint32_t height) {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = vk_image_depth_buffer,
 		.viewType = VK_IMAGE_VIEW_TYPE_2D,
-		.format = VK_FORMAT_D24_UNORM_S8_UINT,
+		.format = VK_FORMAT_D32_SFLOAT_S8_UINT,
 		.subresourceRange = {
 			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
 			.baseMipLevel = 0,
@@ -372,7 +372,7 @@ Context context;
 
 bool initialize(GLFWwindow* const window) {
 	int width = 0, height = 0;
-	glfwGetWindowSize(window, &width, &height);
+	glfwGetFramebufferSize(window, &width, &height);
 
 	vkb::InstanceBuilder ib;
 
@@ -467,7 +467,7 @@ bool initialize(GLFWwindow* const window) {
 	const VkImageCreateInfo depth_buffer = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_2D,
-		.format = VK_FORMAT_D24_UNORM_S8_UINT,
+		.format = VK_FORMAT_D32_SFLOAT_S8_UINT,
 		.extent = { uint32_t(width), uint32_t(height), 1 },
 		.mipLevels = 1,
 		.arrayLayers = 1,
@@ -493,7 +493,7 @@ bool initialize(GLFWwindow* const window) {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = vk_image_depth_buffer,
 		.viewType = VK_IMAGE_VIEW_TYPE_2D,
-		.format = VK_FORMAT_D24_UNORM_S8_UINT,
+		.format = VK_FORMAT_D32_SFLOAT_S8_UINT,
 		.subresourceRange = {
 			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
 			.baseMipLevel = 0,
@@ -521,7 +521,7 @@ bool initialize(GLFWwindow* const window) {
 			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		},
 		{
-			.format = VK_FORMAT_D24_UNORM_S8_UINT,
+			.format = VK_FORMAT_D32_SFLOAT_S8_UINT,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -725,10 +725,25 @@ retry_acquire:
 
 	vkResetFences(context.device, 1, &vk_fence_frame_in_flight);
 
+	vkResetCommandBuffer(vk_command_buffer, 0);
+
+	const VkCommandBufferBeginInfo command_buffer_begin = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+	};
+
+	vkBeginCommandBuffer(vk_command_buffer, &command_buffer_begin);
+
 	return {
 		.framebuffer = vk_framebuffers[vk_swapchain_current_image],
 		.command_buffer = vk_command_buffer,
+		.render_pass = context.render_pass,
+		.extent = context.swapchain_extent,
 	};
+}
+
+void finish(FrameData& fd) {
+	vkEndCommandBuffer(fd.command_buffer);
 }
 
 void submitAndPresent() {
@@ -767,7 +782,7 @@ void submitAndPresent() {
 	    result == VK_SUBOPTIMAL_KHR ||
 	    vk_swapchain_resize_require) {
 		rebuildSwapchain(vk_swapchain_resize_width, vk_swapchain_resize_height);
-	} else {
+	} else if (result != VK_SUCCESS) {
 		std::cerr << "Failed to present Vulkan swapchain image\n";
 	}
 }

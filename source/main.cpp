@@ -84,6 +84,7 @@ int main() {
 
 		graphics::internal::FrameData fd = graphics::internal::prepare();
 		application::render(fd);
+		graphics::internal::finish(fd);
 		graphics::internal::submitAndPresent();
 	}
 

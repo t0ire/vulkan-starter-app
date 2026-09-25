@@ -60,6 +60,7 @@ struct UniformBufferObject {
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::vec4 color;
 };
 
 VkBuffer vk_uniform_buffer;
@@ -81,6 +82,7 @@ float animation_speed = 1.0f;
 float animation_radius = 1.5f; 
 float animation_time = 0.0f; //общее время
 double last_time = 0.0; //ласт время 
+float cube_color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };  // белый
 
 } // namespace
 
@@ -549,6 +551,9 @@ void update([[maybe_unused]] double time) {
 	ImGui::SetNextItemWidth(300.0f);
 	ImGui::SliderFloat3("Scale", cube_scale, 0.1f, 3.0f);
 
+	ImGui::SetNextItemWidth(300.0f);
+	ImGui::ColorEdit3("Color", cube_color);
+
 	ImGui::Separator();
 	ImGui::Text("Animation");
 	ImGui::Checkbox("Play", &is_animating);
@@ -620,6 +625,8 @@ void update([[maybe_unused]] double time) {
 
 	// Vulkan использует Y-вниз (OpenGL — Y-вверх), инвертируем Y
 	ubo.proj[1][1] *= -1.0f;
+
+		ubo.color = glm::vec4(cube_color[0], cube_color[1], cube_color[2], 1.0f);
 
 	// Копируем данные в uniform buffer
 	memcpy(vma_uniform_buffer_info.pMappedData, &ubo, sizeof(ubo));

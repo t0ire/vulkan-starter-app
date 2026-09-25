@@ -30,15 +30,27 @@ struct Vertex {
 	float color[3];
 };
 
-const Vertex cube_vertices[] = {
-	{ { -0.3f, -0.3f, -0.3f }, { 1.0f, 0.0f, 0.0f } },
-	{ {  0.3f, -0.3f, -0.3f }, { 0.0f, 1.0f, 0.0f } },
-	{ {  0.3f,  0.3f, -0.3f }, { 0.0f, 0.0f, 1.0f } },
-	{ { -0.3f,  0.3f, -0.3f }, { 1.0f, 1.0f, 0.0f } },
-	{ { -0.3f, -0.3f,  0.3f }, { 1.0f, 0.0f, 1.0f } },
-	{ {  0.3f, -0.3f,  0.3f }, { 0.0f, 1.0f, 1.0f } },
-	{ {  0.3f,  0.3f,  0.3f }, { 1.0f, 1.0f, 1.0f } },
-	{ { -0.3f,  0.3f,  0.3f }, { 0.5f, 0.5f, 0.5f } },
+Vertex makeVertex(float x, float y, float z) {
+	Vertex v;
+	v.position[0] = x;
+	v.position[1] = y;
+	v.position[2] = z;
+	//зависят от позиции
+	v.color[0] = (x + 0.3f) / 0.6f;   // R: 0 в левом, 1 в правом
+	v.color[1] = (y + 0.3f) / 0.6f;   // G: 0 в нижнем, 1 в верхнем
+	v.color[2] = (z + 0.3f) / 0.6f;   // B: 0 в заднем, 1 в переднем
+	return v;
+}
+
+Vertex cube_vertices[] = {
+	makeVertex(-0.3f, -0.3f, -0.3f),
+	makeVertex( 0.3f, -0.3f, -0.3f),
+	makeVertex( 0.3f,  0.3f, -0.3f),
+	makeVertex(-0.3f,  0.3f, -0.3f),
+	makeVertex(-0.3f, -0.3f,  0.3f),
+	makeVertex( 0.3f, -0.3f,  0.3f),
+	makeVertex( 0.3f,  0.3f,  0.3f),
+	makeVertex(-0.3f,  0.3f,  0.3f),
 };
 
 const uint32_t cube_indices[] = {
@@ -530,7 +542,7 @@ void shutdown() {
 	vmaDestroyBuffer(context.allocator, vk_vertex_buffer, vma_vertex_buffer_allocation);
 	vmaDestroyBuffer(context.allocator, vk_index_buffer, vma_index_buffer_allocation);
 
-		vkDestroyDescriptorPool(context.device, vk_descriptor_pool, nullptr);
+	vkDestroyDescriptorPool(context.device, vk_descriptor_pool, nullptr);
 	vkDestroyDescriptorSetLayout(context.device, vk_descriptor_set_layout, nullptr);
 	vmaDestroyBuffer(context.allocator, vk_uniform_buffer, vma_uniform_buffer_allocation);
 }
@@ -620,7 +632,7 @@ void update([[maybe_unused]] double time) {
 		                      -10.0f, 10.0f);
 	} else {
 		// Перспективная проекция — с искажением
-		ubo.proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
+	ubo.proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
 	}
 
 	// Vulkan использует Y-вниз (OpenGL — Y-вверх), инвертируем Y

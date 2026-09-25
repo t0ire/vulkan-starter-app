@@ -6,6 +6,8 @@
 #include <vector>
 #include <iostream>
 #include <cstring>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace application {
 
@@ -53,6 +55,22 @@ const uint32_t cube_indices[] = {
 	// верхняя 
 	3, 2, 6,   3, 6, 7,
 };
+
+struct UniformBufferObject {
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+};
+
+VkBuffer vk_uniform_buffer;
+VmaAllocation vma_uniform_buffer_allocation;
+VmaAllocationInfo vma_uniform_buffer_info;
+
+VkDescriptorSetLayout vk_descriptor_set_layout;
+VkDescriptorPool vk_descriptor_pool;
+VkDescriptorSet vk_descriptor_set;
+
+bool use_orthographic = false;
 
 } // namespace
 
@@ -208,8 +226,8 @@ bool createGraphicsPipeline() {
 
 	const VkPipelineLayoutCreateInfo pipeline_layout_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-		.setLayoutCount = 0,
-		.pSetLayouts = nullptr,
+		.setLayoutCount = 1,
+		.pSetLayouts = &vk_descriptor_set_layout,
 		.pushConstantRangeCount = 0,
 		.pPushConstantRanges = nullptr,
 	};
@@ -306,6 +324,114 @@ bool createIndexBuffer() {
 	return true;
 }
 
+bool createUniformBuffer() {
+	const VkDeviceSize buffer_size = sizeof(UniformBufferObject);
+
+	const VkBufferCreateInfo buffer_info = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = buffer_size,
+		.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	const VmaAllocationCreateInfo allocation_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+		         VMA_ALLOCATION_CREATE_MAPPED_BIT,
+	};
+
+	if (vmaCreateBuffer(graphics::internal::context.allocator, &buffer_info, &allocation_info,
+	                    &vk_uniform_buffer, &vma_uniform_buffer_allocation,
+	                    &vma_uniform_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create uniform buffer\n";
+		return false;
+	}
+
+	std::cout << "Uniform buffer created successfully\n";
+	return true;
+}
+
+bool createDescriptorSetLayout() {
+	const VkDescriptorSetLayoutBinding ubo_layout_binding = {
+		.binding = 0,                                        // binding = 0 в шейдере
+		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, // это uniform buffer
+		.descriptorCount = 1,
+		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,            // используется в vertex shader
+		.pImmutableSamplers = nullptr,
+	};
+
+	const VkDescriptorSetLayoutCreateInfo layout_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.bindingCount = 1,
+		.pBindings = &ubo_layout_binding,
+	};
+
+	if (vkCreateDescriptorSetLayout(graphics::internal::context.device, &layout_info, nullptr, &vk_descriptor_set_layout) != VK_SUCCESS) {
+		std::cerr << "Failed to create descriptor set layout\n";
+		return false;
+	}
+
+	std::cout << "Descriptor set layout created successfully\n";
+	return true;
+}
+
+bool createDescriptorPool() {
+	const VkDescriptorPoolSize pool_size = {
+		.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		.descriptorCount = 1,
+	};
+
+	const VkDescriptorPoolCreateInfo pool_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.poolSizeCount = 1,
+		.pPoolSizes = &pool_size,
+		.maxSets = 1,
+	};
+
+	if (vkCreateDescriptorPool(graphics::internal::context.device, &pool_info, nullptr, &vk_descriptor_pool) != VK_SUCCESS) {
+		std::cerr << "Failed to create descriptor pool\n";
+		return false;
+	}
+
+	std::cout << "Descriptor pool created successfully\n";
+	return true;
+}
+
+bool createDescriptorSet() {
+	const VkDescriptorSetAllocateInfo alloc_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.descriptorPool = vk_descriptor_pool,
+		.descriptorSetCount = 1,
+		.pSetLayouts = &vk_descriptor_set_layout,
+	};
+
+	if (vkAllocateDescriptorSets(graphics::internal::context.device, &alloc_info, &vk_descriptor_set) != VK_SUCCESS) {
+		std::cerr << "Failed to allocate descriptor set\n";
+		return false;
+	}
+
+	const VkDescriptorBufferInfo buffer_info = {
+		.buffer = vk_uniform_buffer,
+		.offset = 0,
+		.range = sizeof(UniformBufferObject),
+	};
+
+	const VkWriteDescriptorSet descriptor_write = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = vk_descriptor_set,
+		.dstBinding = 0,
+		.dstArrayElement = 0,
+		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		.descriptorCount = 1,
+		.pBufferInfo = &buffer_info,
+	};
+
+	vkUpdateDescriptorSets(graphics::internal::context.device, 1, &descriptor_write, 0, nullptr);
+
+	std::cout << "Descriptor set created successfully\n";
+	return true;
+}
+
 bool initialize() {
 	const std::vector<char> vert_code = readFile("shaders/cube.vert.spv");
 	if (vert_code.empty()) {
@@ -331,12 +457,16 @@ bool initialize() {
 		return false;
 	}
 
+	if (!createDescriptorSetLayout()) {
+		std::cerr << "Failed to create descriptor set layout\n";
+		return false;
+	}
+
 	if (!createGraphicsPipeline()) {
 		std::cerr << "Failed to create graphics pipeline\n";
 		return false;
 	}
 
-	// Шейдерные модули больше не нужны — pipeline содержит всё.
 	vkDestroyShaderModule(graphics::internal::context.device, vk_shader_module_vert, nullptr);
 	vkDestroyShaderModule(graphics::internal::context.device, vk_shader_module_frag, nullptr);
 	vk_shader_module_vert = VK_NULL_HANDLE;
@@ -352,7 +482,22 @@ bool initialize() {
 		return false;
 	}
 
-	std::cout << "Shader modules created successfully\n";
+	if (!createUniformBuffer()) {
+		std::cerr << "Failed to create uniform buffer\n";
+		return false;
+	}
+
+	if (!createDescriptorPool()) {
+		std::cerr << "Failed to create descriptor pool\n";
+		return false;
+	}
+
+	if (!createDescriptorSet()) {
+		std::cerr << "Failed to create descriptor set\n";
+		return false;
+	}
+
+	std::cout << "Application initialized successfully\n";
 	return true;
 }
 
@@ -372,10 +517,47 @@ void shutdown() {
 
 	vmaDestroyBuffer(context.allocator, vk_vertex_buffer, vma_vertex_buffer_allocation);
 	vmaDestroyBuffer(context.allocator, vk_index_buffer, vma_index_buffer_allocation);
+
+		vkDestroyDescriptorPool(context.device, vk_descriptor_pool, nullptr);
+	vkDestroyDescriptorSetLayout(context.device, vk_descriptor_set_layout, nullptr);
+	vmaDestroyBuffer(context.allocator, vk_uniform_buffer, vma_uniform_buffer_allocation);
 }
 
 void update([[maybe_unused]] double time) {
 	ImGui::ShowDemoWindow();
+
+	ImGui::Begin("Controls");
+	ImGui::Checkbox("Orthographic projection", &use_orthographic);
+	ImGui::End();
+
+	UniformBufferObject ubo{};
+
+	// Model: вращаем куб вокруг оси Y
+	ubo.model = glm::rotate(glm::mat4(1.0f), float(time) * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	// View: камера смотрит на куб
+	ubo.view = glm::lookAt(glm::vec3(0.0f, -1.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	// Projection: переключение между перспективной и ортографической
+	const float aspect = float(graphics::internal::context.swapchain_extent.width) /
+	                     float(graphics::internal::context.swapchain_extent.height);
+
+	if (use_orthographic) {
+		// Ортографическая проекция — без искажения
+		const float ortho_size = 2.0f;  // половина высоты видимой области
+		ubo.proj = glm::ortho(-ortho_size * aspect, ortho_size * aspect,
+		                      -ortho_size, ortho_size,
+		                      -10.0f, 10.0f);
+	} else {
+		// Перспективная проекция — с искажением
+		ubo.proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
+	}
+
+	// Vulkan использует Y-вниз (OpenGL — Y-вверх), инвертируем Y
+	ubo.proj[1][1] *= -1.0f;
+
+	// Копируем данные в uniform buffer
+	memcpy(vma_uniform_buffer_info.pMappedData, &ubo, sizeof(ubo));
 }
 
 void render(const graphics::internal::FrameData& fd) {
@@ -396,6 +578,8 @@ void render(const graphics::internal::FrameData& fd) {
 	vkCmdBeginRenderPass(fd.command_buffer, &render_pass_begin, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindPipeline(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
+
+		vkCmdBindDescriptorSets(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline_layout, 0, 1, &vk_descriptor_set, 0, nullptr);
 
 	const VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(fd.command_buffer, 0, 1, &vk_vertex_buffer, offsets);

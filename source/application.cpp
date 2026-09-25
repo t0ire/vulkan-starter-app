@@ -72,6 +72,10 @@ VkDescriptorSet vk_descriptor_set;
 
 bool use_orthographic = false;
 
+float cube_position[3] = { 0.0f, 0.0f, 0.0f }; //проекция
+float cube_rotation[3] = { 0.0f, 0.0f, 0.0f }; //поворот в градусах
+float cube_scale[3]    = { 1.0f, 1.0f, 1.0f }; //масштаб
+
 } // namespace
 
 std::vector<char> readFile(const std::string& filename) {
@@ -528,12 +532,33 @@ void update([[maybe_unused]] double time) {
 
 	ImGui::Begin("Controls");
 	ImGui::Checkbox("Orthographic projection", &use_orthographic);
+	ImGui::SetNextItemWidth(400.0f);
+	ImGui::SliderFloat3("Position", cube_position, -3.0f, 3.0f);
+
+	ImGui::SetNextItemWidth(400.0f);
+	ImGui::SliderFloat3("Rotation", cube_rotation, -180.0f, 180.0f);
+
+	ImGui::SetNextItemWidth(400.0f);
+	ImGui::SliderFloat3("Scale", cube_scale, 0.1f, 3.0f);
 	ImGui::End();
 
 	UniformBufferObject ubo{};
 
 	// Model: вращаем куб вокруг оси Y
-	ubo.model = glm::rotate(glm::mat4(1.0f), float(time) * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 model = glm::mat4(1.0f);
+
+	// Позиция
+	model = glm::translate(model, glm::vec3(cube_position[0], cube_position[1], cube_position[2]));
+
+	// Поворот (по осям X, Y, Z)
+	model = glm::rotate(model, glm::radians(cube_rotation[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(cube_rotation[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(cube_rotation[2]), glm::vec3(0.0f, 0.0f, 1.0f));
+
+	// Масштаб
+	model = glm::scale(model, glm::vec3(cube_scale[0], cube_scale[1], cube_scale[2]));
+
+	ubo.model = model;
 
 	// View: камера смотрит на куб
 	ubo.view = glm::lookAt(glm::vec3(0.0f, -1.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));

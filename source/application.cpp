@@ -76,6 +76,12 @@ float cube_position[3] = { 0.0f, 0.0f, 0.0f }; //проекция
 float cube_rotation[3] = { 0.0f, 0.0f, 0.0f }; //поворот в градусах
 float cube_scale[3]    = { 1.0f, 1.0f, 1.0f }; //масштаб
 
+bool is_animating = false; //анимация
+float animation_speed = 1.0f;
+float animation_radius = 1.5f; 
+float animation_time = 0.0f; //общее время
+double last_time = 0.0; //ласт время 
+
 } // namespace
 
 std::vector<char> readFile(const std::string& filename) {
@@ -531,28 +537,62 @@ void update([[maybe_unused]] double time) {
 	ImGui::ShowDemoWindow();
 
 	ImGui::Begin("Controls");
+
 	ImGui::Checkbox("Orthographic projection", &use_orthographic);
-	ImGui::SetNextItemWidth(400.0f);
+
+	ImGui::SetNextItemWidth(300.0f);
 	ImGui::SliderFloat3("Position", cube_position, -3.0f, 3.0f);
 
-	ImGui::SetNextItemWidth(400.0f);
+	ImGui::SetNextItemWidth(300.0f);
 	ImGui::SliderFloat3("Rotation", cube_rotation, -180.0f, 180.0f);
 
-	ImGui::SetNextItemWidth(400.0f);
+	ImGui::SetNextItemWidth(300.0f);
 	ImGui::SliderFloat3("Scale", cube_scale, 0.1f, 3.0f);
+
+	ImGui::Separator();
+	ImGui::Text("Animation");
+	ImGui::Checkbox("Play", &is_animating);
+	ImGui::SetNextItemWidth(300.0f);
+	ImGui::SliderFloat("Speed", &animation_speed, 0.0f, 5.0f);
+	ImGui::SetNextItemWidth(300.0f);
+	ImGui::SliderFloat("Radius", &animation_radius, 0.0f, 3.0f);
+
 	ImGui::End();
+
+	const double current_time = time;
+	const double delta_time = current_time - last_time;
+	last_time = current_time;
+
+	if (is_animating) {
+		animation_time += float(delta_time) * animation_speed;
+	}
 
 	UniformBufferObject ubo{};
 
 	// Model: вращаем куб вокруг оси Y
 	glm::mat4 model = glm::mat4(1.0f);
 
-	// Позиция
-	model = glm::translate(model, glm::vec3(cube_position[0], cube_position[1], cube_position[2]));
+	// Автоматическая позиция от анимации (если включена)
+	float auto_pos_x = 0.0f;
+	float auto_pos_z = 0.0f;
+	float auto_rot_y = 0.0f;
 
-	// Поворот (по осям X, Y, Z)
+	if (is_animating) {
+		auto_pos_x = glm::cos(animation_time) * animation_radius;
+		auto_pos_z = glm::sin(animation_time) * animation_radius;
+		auto_rot_y = animation_time * 45.0f;
+	}
+
+	// Позиция = слайдер + анимация
+	model = glm::translate(model, glm::vec3(
+		cube_position[0] + auto_pos_x,
+		cube_position[1],
+		cube_position[2] + auto_pos_z
+	));
+
+	// Поворот = слайдер + анимация
 	model = glm::rotate(model, glm::radians(cube_rotation[0]), glm::vec3(1.0f, 0.0f, 0.0f));
-	model = glm::rotate(model, glm::radians(cube_rotation[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(cube_rotation[1] + auto_rot_y), glm::vec3(0.0f, 1.0f, 0.0f));
 	model = glm::rotate(model, glm::radians(cube_rotation[2]), glm::vec3(0.0f, 0.0f, 1.0f));
 
 	// Масштаб

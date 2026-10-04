@@ -310,7 +310,7 @@ bool createVertexBuffer() {
 		return false;
 	}
 
-	// Копируем данные вершин в память GPU
+	// копируем данные вершин в память GPU
 	memcpy(allocation_result.pMappedData, cube_vertices, buffer_size);
 
 	std::cout << "Vertex buffer created successfully\n";
@@ -586,10 +586,10 @@ void update([[maybe_unused]] double time) {
 
 	UniformBufferObject ubo{};
 
-	// Model: вращаем куб вокруг оси Y
+	// вращаем куб вокруг оси Y
 	glm::mat4 model = glm::mat4(1.0f);
 
-	// Автоматическая позиция от анимации (если включена)
+	// автоматическая позиция от анимации 
 	float auto_pos_x = 0.0f;
 	float auto_pos_z = 0.0f;
 	float auto_rot_y = 0.0f;
@@ -600,47 +600,45 @@ void update([[maybe_unused]] double time) {
 		auto_rot_y = animation_time * 45.0f;
 	}
 
-	// Позиция = слайдер + анимация
+	// позиция = слайдер + анимация
 	model = glm::translate(model, glm::vec3(
 		cube_position[0] + auto_pos_x,
 		cube_position[1],
 		cube_position[2] + auto_pos_z
 	));
 
-	// Поворот = слайдер + анимация
+	// поворот = слайдер + анимация
 	model = glm::rotate(model, glm::radians(cube_rotation[0]), glm::vec3(1.0f, 0.0f, 0.0f));
 	model = glm::rotate(model, glm::radians(cube_rotation[1] + auto_rot_y), glm::vec3(0.0f, 1.0f, 0.0f));
 	model = glm::rotate(model, glm::radians(cube_rotation[2]), glm::vec3(0.0f, 0.0f, 1.0f));
 
-	// Масштаб
+	// масштаб
 	model = glm::scale(model, glm::vec3(cube_scale[0], cube_scale[1], cube_scale[2]));
 
 	ubo.model = model;
 
 	// View: камера смотрит на куб
-	ubo.view = glm::lookAt(glm::vec3(0.0f, -1.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 8.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	// Projection: переключение между перспективной и ортографической
 	const float aspect = float(graphics::internal::context.swapchain_extent.width) /
 	                     float(graphics::internal::context.swapchain_extent.height);
 
 	if (use_orthographic) {
-		// Ортографическая проекция — без искажения
+		// ортографическая проекция
 		const float ortho_size = 2.0f;  // половина высоты видимой области
 		ubo.proj = glm::ortho(-ortho_size * aspect, ortho_size * aspect,
 		                      -ortho_size, ortho_size,
 		                      -10.0f, 10.0f);
 	} else {
-		// Перспективная проекция — с искажением
-	ubo.proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
+		// перспективная проекция 
+	ubo.proj = glm::perspective(glm::radians(30.0f), aspect, 0.1f, 10.0f);
 	}
 
-	// Vulkan использует Y-вниз (OpenGL — Y-вверх), инвертируем Y
 	ubo.proj[1][1] *= -1.0f;
 
 		ubo.color = glm::vec4(cube_color[0], cube_color[1], cube_color[2], 1.0f);
 
-	// Копируем данные в uniform buffer
 	memcpy(vma_uniform_buffer_info.pMappedData, &ubo, sizeof(ubo));
 }
 

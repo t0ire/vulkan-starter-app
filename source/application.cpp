@@ -28,51 +28,91 @@ uint32_t index_count;
 struct Vertex {
 	float position[3];
 	float color[3];
+	float normal[3];
 };
 
-Vertex makeVertex(float x, float y, float z) {
+Vertex makeVertex(float x, float y, float z, float nx, float ny, float nz) {
 	Vertex v;
 	v.position[0] = x;
 	v.position[1] = y;
 	v.position[2] = z;
-	//зависят от позиции
-	v.color[0] = (x + 0.3f) / 0.6f;   // R: 0 в левом, 1 в правом
-	v.color[1] = (y + 0.3f) / 0.6f;   // G: 0 в нижнем, 1 в верхнем
-	v.color[2] = (z + 0.3f) / 0.6f;   // B: 0 в заднем, 1 в переднем
+
+	v.color[0] = (x + 0.3f) / 0.6f;
+	v.color[1] = (y + 0.3f) / 0.6f;
+	v.color[2] = (z + 0.3f) / 0.6f;
+
+	v.normal[0] = nx;
+	v.normal[1] = ny;
+	v.normal[2] = nz;
 	return v;
 }
 
 Vertex cube_vertices[] = {
-	makeVertex(-0.3f, -0.3f, -0.3f),
-	makeVertex( 0.3f, -0.3f, -0.3f),
-	makeVertex( 0.3f,  0.3f, -0.3f),
-	makeVertex(-0.3f,  0.3f, -0.3f),
-	makeVertex(-0.3f, -0.3f,  0.3f),
-	makeVertex( 0.3f, -0.3f,  0.3f),
-	makeVertex( 0.3f,  0.3f,  0.3f),
-	makeVertex(-0.3f,  0.3f,  0.3f),
+	//задняя грань (Z = -0.3), нормаль (0, 0, -1)
+	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
+	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
+	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
+	//передняя грань (Z = 0.3), нормаль (0, 0, 1)
+	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
+	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
+	//левая грань (X = -0.3), нормаль (-1, 0, 0)
+	makeVertex(-0.3f, -0.3f, -0.3f, -1.0f,  0.0f,  0.0f),
+	makeVertex(-0.3f,  0.3f, -0.3f, -1.0f,  0.0f,  0.0f),
+	makeVertex(-0.3f,  0.3f,  0.3f, -1.0f,  0.0f,  0.0f),
+	makeVertex(-0.3f, -0.3f,  0.3f, -1.0f,  0.0f,  0.0f),
+	//правая грань (X = 0.3), нормаль (1, 0, 0)
+	makeVertex( 0.3f, -0.3f, -0.3f,  1.0f,  0.0f,  0.0f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  1.0f,  0.0f,  0.0f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  1.0f,  0.0f,  0.0f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  1.0f,  0.0f,  0.0f),
+	//нижняя грань (Y = -0.3), нормаль (0, -1, 0)
+	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f),
+	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f),
+	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f),
+	//верхняя грань (Y = 0.3), нормаль (0, 1, 0)
+	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f),
+	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f),
 };
 
 const uint32_t cube_indices[] = {
-	// задняя 
-	0, 1, 2,   0, 2, 3,
-	// передняя 
-	4, 6, 5,   4, 7, 6,
-	// левая 
-	0, 3, 7,   0, 7, 4,
-	// правая 
-	1, 5, 6,   1, 6, 2,
-	// нижняя
-	0, 4, 5,   0, 5, 1,
-	// верхняя 
-	3, 2, 6,   3, 6, 7,
+	// Задняя грань (смотрим сзади, Z = -0.3)
+	0, 3, 2,  0, 2, 1,
+	
+	// Передняя грань (смотрим спереди, Z = 0.3)
+	4, 5, 6,  4, 6, 7,
+	
+	// Левая грань (смотрим слева, X = -0.3)
+	8, 11, 10,  8, 10, 9,
+	
+	// Правая грань (смотрим справа, X = 0.3)
+	12, 13, 14,  12, 14, 15,
+	
+	// Нижняя грань (смотрим снизу, Y = -0.3)
+	16, 17, 18,  16, 18, 19,
+	
+	// Верхняя грань (смотрим сверху, Y = 0.3)
+	20, 23, 22,  20, 22, 21
 };
 
 struct UniformBufferObject {
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
-	glm::vec4 color;
+	glm::vec4 cameraPos;     // xyz = поз, w = padding
+
+	glm::vec4 lightDir;      // xyz = направление, w = padding
+	glm::vec4 lightColor;    // xyz = цвет, w = интенсивность (lightIntensity)
+
+	glm::vec4 ambientColor;  // xyz = фоновый свет, w = padding
+
+	glm::vec4 albedo;        // xyz = базовый цвет, w = shininess
+	glm::vec4 specularColor; // xyz = цвет блика, w = padding
 };
 
 VkBuffer vk_uniform_buffer;
@@ -96,6 +136,16 @@ float animation_time = 0.0f; //общее время
 double last_time = 0.0; //ласт время 
 float cube_color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };  // белый
 
+float camera_pos[3] = { -4.0f, 3.0f, 6.0f }; 
+float camera_fov = 30.0f;
+
+float light_dir[3] = { 1.0f, 1.0f, 1.0f };
+float light_color[3] = { 1.0f, 1.0f, 1.0f };
+float light_intensity = 1.0f;
+float ambient_color[3] = { 0.1f, 0.1f, 0.1f };
+
+float material_specular[3] = { 1.0f, 1.0f, 1.0f };
+float material_shininess = 32.0f;
 } // namespace
 
 std::vector<char> readFile(const std::string& filename) {
@@ -151,31 +201,37 @@ bool createGraphicsPipeline() {
 	};
 
 	const VkVertexInputBindingDescription vertex_binding = {
-		.binding = 0,                              // номер привязки
-		.stride = sizeof(float) * 6,               // размер одной вершины в байтах (6 float)
-		.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,  // данные меняются на каждую вершину
+		.binding = 0,
+		.stride = sizeof(Vertex), 
+		.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
 	};
 
-	const VkVertexInputAttributeDescription vertex_attributes[] = {
-		{
-			.location = 0,                     // location = 0 в шейдере
-			.binding = 0,
-			.format = VK_FORMAT_R32G32B32_SFLOAT,  // vec3
-			.offset = 0,                       // смещение в структуре вершины
+		const VkVertexInputAttributeDescription vertex_attributes[] = {
+		{ 
+			.location = 0, 
+			.binding = 0, 
+			.format = VK_FORMAT_R32G32B32_SFLOAT, 
+			.offset = offsetof(Vertex, position) 
 		},
-		{
-			.location = 1,                     // location = 1 в шейдере
-			.binding = 0,
-			.format = VK_FORMAT_R32G32B32_SFLOAT,  // vec3
-			.offset = sizeof(float) * 3,       // смещение после position
+		{ 
+			.location = 1, 
+			.binding = 0, 
+			.format = VK_FORMAT_R32G32B32_SFLOAT, 
+			.offset = offsetof(Vertex, color) 
 		},
+		{ 
+			.location = 2, 
+			.binding = 0, 
+			.format = VK_FORMAT_R32G32B32_SFLOAT, 
+			.offset = offsetof(Vertex, normal) 
+		}, 
 	};
 
 	const VkPipelineVertexInputStateCreateInfo vertex_input = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.vertexBindingDescriptionCount = 1,
 		.pVertexBindingDescriptions = &vertex_binding,
-		.vertexAttributeDescriptionCount = 2,
+		.vertexAttributeDescriptionCount = 3,
 		.pVertexAttributeDescriptions = vertex_attributes,
 	};
 
@@ -212,7 +268,7 @@ bool createGraphicsPipeline() {
 		.depthClampEnable = VK_FALSE,           // не отсекать по глубине
 		.rasterizerDiscardEnable = VK_FALSE,    // не отбрасывать всё
 		.polygonMode = VK_POLYGON_MODE_FILL,    // заливать треугольники
-		.cullMode = VK_CULL_MODE_BACK_BIT,      // отбрасывать задние грани
+		.cullMode = VK_CULL_MODE_NONE,    // отбрасывать задние грани
 		.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,  // передние грани — против часовой
 		.depthBiasEnable = VK_FALSE,
 		.lineWidth = 1.0f,
@@ -380,7 +436,7 @@ bool createDescriptorSetLayout() {
 		.binding = 0,                                        // binding = 0 в шейдере
 		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, // это uniform buffer
 		.descriptorCount = 1,
-		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,            // используется в vertex shader
+		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,            // используется в vertex shader
 		.pImmutableSamplers = nullptr,
 	};
 
@@ -574,6 +630,23 @@ void update([[maybe_unused]] double time) {
 	ImGui::SetNextItemWidth(300.0f);
 	ImGui::SliderFloat("Radius", &animation_radius, 0.0f, 3.0f);
 
+	ImGui::Separator();
+	ImGui::Text("Camera");
+	ImGui::SliderFloat3("Cam Pos", camera_pos, -10.0f, 10.0f);
+	ImGui::SliderFloat("Cam FOV", &camera_fov, 10.0f, 90.0f);
+
+	ImGui::Separator();
+	ImGui::Text("Light");
+	ImGui::SliderFloat3("Light Dir", light_dir, -1.0f, 1.0f);
+	ImGui::ColorEdit3("Light Color", light_color);
+	ImGui::SliderFloat("Intensity", &light_intensity, 0.0f, 5.0f);
+	ImGui::ColorEdit3("Ambient", ambient_color);
+
+	ImGui::Separator();
+	ImGui::Text("Material");
+	ImGui::ColorEdit3("Specular", material_specular);
+	ImGui::SliderFloat("Shininess", &material_shininess, 1.0f, 256.0f);
+
 	ImGui::End();
 
 	const double current_time = time;
@@ -618,7 +691,7 @@ void update([[maybe_unused]] double time) {
 	ubo.model = model;
 
 	// View: камера смотрит на куб
-	ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 8.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.view = glm::lookAt(glm::vec3(camera_pos[0], camera_pos[1], camera_pos[2]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	// Projection: переключение между перспективной и ортографической
 	const float aspect = float(graphics::internal::context.swapchain_extent.width) /
@@ -632,12 +705,19 @@ void update([[maybe_unused]] double time) {
 		                      -10.0f, 10.0f);
 	} else {
 		// перспективная проекция 
-	ubo.proj = glm::perspective(glm::radians(30.0f), aspect, 0.1f, 10.0f);
+	ubo.proj = glm::perspective(glm::radians(camera_fov), aspect, 0.1f, 10.0f);
 	}
 
 	ubo.proj[1][1] *= -1.0f;
 
-		ubo.color = glm::vec4(cube_color[0], cube_color[1], cube_color[2], 1.0f);
+	ubo.cameraPos = glm::vec4(camera_pos[0], camera_pos[1], camera_pos[2], 1.0f); 
+	
+	ubo.lightDir = glm::vec4(glm::normalize(glm::vec3(light_dir[0], light_dir[1], light_dir[2])), 0.0f);
+	ubo.lightColor = glm::vec4(light_color[0], light_color[1], light_color[2], light_intensity);
+	ubo.ambientColor = glm::vec4(ambient_color[0], ambient_color[1], ambient_color[2], 1.0f);
+	
+	ubo.albedo = glm::vec4(cube_color[0], cube_color[1], cube_color[2], material_shininess);
+	ubo.specularColor = glm::vec4(material_specular[0], material_specular[1], material_specular[2], 1.0f);
 
 	memcpy(vma_uniform_buffer_info.pMappedData, &ubo, sizeof(ubo));
 }

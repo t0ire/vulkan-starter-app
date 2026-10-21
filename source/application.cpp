@@ -8,6 +8,7 @@
 #include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <string>
 
 namespace application {
 
@@ -115,6 +116,18 @@ struct ModelUBO {
 	glm::vec4 specularColor; // xyz = цвет блика, w = padding
 };
 
+struct PointLight {
+	glm::vec4 position;  // xyz = позиция, w = padding
+	glm::vec4 color;     // xyz = цвет, w = интенсивность
+};
+
+//массив точечных источников 
+const int MAX_POINT_LIGHTS = 10;
+std::vector<PointLight> point_lights = {
+	{ glm::vec4(2.0f, 2.0f, 2.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 5.0f) }, // Красный
+	{ glm::vec4(-2.0f, -2.0f, 2.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 5.0f) } // Зелёный
+};
+
 //буферы для сцены и модели
 VkBuffer vk_scene_uniform_buffer;
 VmaAllocation vma_scene_uniform_buffer_allocation;
@@ -130,6 +143,11 @@ VkDescriptorSetLayout vk_model_descriptor_set_layout;
 VkDescriptorPool vk_descriptor_pool;
 VkDescriptorSet vk_scene_descriptor_set;
 VkDescriptorSet vk_model_descriptor_set;
+
+//Storage Buffer для точечных источников
+VkBuffer vk_point_lights_buffer;
+VmaAllocation vma_point_lights_buffer_allocation;
+VmaAllocationInfo vma_point_lights_buffer_info;
 
 bool use_orthographic = false;
 
@@ -454,14 +472,56 @@ bool createModelUniformBuffer() {
 	return true;
 }
 
+bool createPointLightsBuffer() {
+	//резервируем память под максимальное количество источников
+	const VkDeviceSize buffer_size = sizeof(PointLight) * MAX_POINT_LIGHTS;
+
+	const VkBufferCreateInfo buffer_info = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = buffer_size,
+		.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,  
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	const VmaAllocationCreateInfo allocation_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+		         VMA_ALLOCATION_CREATE_MAPPED_BIT,
+	};
+
+	if (vmaCreateBuffer(graphics::internal::context.allocator, &buffer_info, &allocation_info,
+	                    &vk_point_lights_buffer, &vma_point_lights_buffer_allocation,
+	                    &vma_point_lights_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create point lights storage buffer\n";
+		return false;
+	}
+
+	std::cout << "Point Lights Storage Buffer created successfully\n";
+	return true;
+}
+
 bool createSceneDescriptorSetLayout() {
-	const VkDescriptorSetLayoutBinding binding = {
-		.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1,
-		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+	const VkDescriptorSetLayoutBinding bindings[] = {
+		{
+			.binding = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+		},
+		{
+			.binding = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		}
 	};
+
 	const VkDescriptorSetLayoutCreateInfo layout_info = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1, .pBindings = &binding,
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.bindingCount = 2,
+		.pBindings = bindings,
 	};
+
 	if (vkCreateDescriptorSetLayout(graphics::internal::context.device, &layout_info, nullptr, &vk_scene_descriptor_set_layout) != VK_SUCCESS) {
 		return false;
 	}
@@ -485,11 +545,18 @@ bool createModelDescriptorSetLayout() {
 }
 
 bool createDescriptorPool() {
-	const VkDescriptorPoolSize pool_size = { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 2 };
+	const VkDescriptorPoolSize pool_sizes[] = {
+		{ .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 2 }, //для Scene и Model
+		{ .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1 }  //для Point Lights
+	};
+
 	const VkDescriptorPoolCreateInfo pool_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-		.poolSizeCount = 1, .pPoolSizes = &pool_size, .maxSets = 2, // 2 сета: сцена и модель
+		.poolSizeCount = 2,
+		.pPoolSizes = pool_sizes,
+		.maxSets = 2,
 	};
+
 	if (vkCreateDescriptorPool(graphics::internal::context.device, &pool_info, nullptr, &vk_descriptor_pool) != VK_SUCCESS) {
 		return false;
 	}
@@ -505,11 +572,20 @@ bool createDescriptorSets() {
 	if (vkAllocateDescriptorSets(graphics::internal::context.device, &scene_alloc, &vk_scene_descriptor_set) != VK_SUCCESS) return false;
 
 	const VkDescriptorBufferInfo scene_buf = { .buffer = vk_scene_uniform_buffer, .offset = 0, .range = sizeof(SceneUBO) };
-	const VkWriteDescriptorSet scene_write = {
-		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = vk_scene_descriptor_set,
-		.dstBinding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .pBufferInfo = &scene_buf,
+	const VkDescriptorBufferInfo point_lights_buf = { .buffer = vk_point_lights_buffer, .offset = 0, .range = VK_WHOLE_SIZE };
+
+	const VkWriteDescriptorSet scene_writes[] = {
+		{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = vk_scene_descriptor_set,
+			.dstBinding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .pBufferInfo = &scene_buf,
+		},
+		{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = vk_scene_descriptor_set,
+			.dstBinding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1, .pBufferInfo = &point_lights_buf,
+		}
 	};
-	vkUpdateDescriptorSets(graphics::internal::context.device, 1, &scene_write, 0, nullptr);
+
+	vkUpdateDescriptorSets(graphics::internal::context.device, 2, scene_writes, 0, nullptr);
 
 	//модель
 	const VkDescriptorSetAllocateInfo model_alloc = {
@@ -579,6 +655,7 @@ bool initialize() {
 
 	if (!createSceneUniformBuffer()) return false;
 	if (!createModelUniformBuffer()) return false;
+	if (!createPointLightsBuffer()) return false;
 	if (!createDescriptorPool()) return false;
 	if (!createDescriptorSets()) return false;
 
@@ -608,6 +685,7 @@ void shutdown() {
 	vkDestroyDescriptorSetLayout(context.device, vk_model_descriptor_set_layout, nullptr);
 	vmaDestroyBuffer(context.allocator, vk_scene_uniform_buffer, vma_scene_uniform_buffer_allocation);
 	vmaDestroyBuffer(context.allocator, vk_model_uniform_buffer, vma_model_uniform_buffer_allocation);
+	vmaDestroyBuffer(context.allocator, vk_point_lights_buffer, vma_point_lights_buffer_allocation);
 }
 
 void update([[maybe_unused]] double time) {
@@ -653,6 +731,36 @@ void update([[maybe_unused]] double time) {
 	ImGui::Text("Material");
 	ImGui::ColorEdit3("Specular", material_specular);
 	ImGui::SliderFloat("Shininess", &material_shininess, 1.0f, 256.0f);
+
+	ImGui::Separator();
+	ImGui::Text("Point Lights");
+	
+	for (size_t i = 0; i < point_lights.size(); ++i) {
+		ImGui::PushID(int(i));
+		if (ImGui::TreeNode(("Light #" + std::to_string(i)).c_str())) {
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::SliderFloat3("Position", &point_lights[i].position.x, -5.0f, 5.0f);
+			ImGui::ColorEdit3("Color", &point_lights[i].color.x);
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::SliderFloat("Intensity", &point_lights[i].color.w, 0.0f, 10.0f);
+			
+			if (ImGui::Button("Remove")) {
+				point_lights.erase(point_lights.begin() + i);
+			}
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+	}
+	
+	if (point_lights.size() < MAX_POINT_LIGHTS) {
+		if (ImGui::Button("Add Point Light")) {
+			PointLight new_light = {
+				{ 0.0f, 3.0f, 0.0f, 1.0f },  // Позиция
+				{ 1.0f, 1.0f, 1.0f, 5.0f }   // Белый свет
+			};
+			point_lights.push_back(new_light);
+		}
+	}
 
 	ImGui::End();
 
@@ -728,6 +836,7 @@ void update([[maybe_unused]] double time) {
 
 	memcpy(vma_scene_uniform_buffer_info.pMappedData, &scene_ubo, sizeof(scene_ubo));
 	memcpy(vma_model_uniform_buffer_info.pMappedData, &model_ubo, sizeof(model_ubo));
+	memcpy(vma_point_lights_buffer_info.pMappedData, point_lights.data(), point_lights.size() * sizeof(PointLight));
 }
 
 void render(const graphics::internal::FrameData& fd) {

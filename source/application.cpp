@@ -100,28 +100,36 @@ const uint32_t cube_indices[] = {
 	20, 23, 22,  20, 22, 21
 };
 
-struct UniformBufferObject {
-	glm::mat4 model;
+struct SceneUBO {
 	glm::mat4 view;
 	glm::mat4 proj;
-	glm::vec4 cameraPos;     // xyz = поз, w = padding
-
-	glm::vec4 lightDir;      // xyz = направление, w = padding
-	glm::vec4 lightColor;    // xyz = цвет, w = интенсивность (lightIntensity)
-
+	glm::vec4 cameraPos;     // xyz = позиция камеры, w = padding
+	glm::vec4 lightDir;      // xyz = направление света, w = padding
+	glm::vec4 lightColor;    // xyz = цвет, w = интенсивность
 	glm::vec4 ambientColor;  // xyz = фоновый свет, w = padding
+};
 
+struct ModelUBO {
+	glm::mat4 model;
 	glm::vec4 albedo;        // xyz = базовый цвет, w = shininess
 	glm::vec4 specularColor; // xyz = цвет блика, w = padding
 };
 
-VkBuffer vk_uniform_buffer;
-VmaAllocation vma_uniform_buffer_allocation;
-VmaAllocationInfo vma_uniform_buffer_info;
+//буферы для сцены и модели
+VkBuffer vk_scene_uniform_buffer;
+VmaAllocation vma_scene_uniform_buffer_allocation;
+VmaAllocationInfo vma_scene_uniform_buffer_info;
 
-VkDescriptorSetLayout vk_descriptor_set_layout;
+VkBuffer vk_model_uniform_buffer;
+VmaAllocation vma_model_uniform_buffer_allocation;
+VmaAllocationInfo vma_model_uniform_buffer_info;
+
+//дескрипторы (Layout, Pool, Sets)
+VkDescriptorSetLayout vk_scene_descriptor_set_layout;
+VkDescriptorSetLayout vk_model_descriptor_set_layout;
 VkDescriptorPool vk_descriptor_pool;
-VkDescriptorSet vk_descriptor_set;
+VkDescriptorSet vk_scene_descriptor_set;
+VkDescriptorSet vk_model_descriptor_set;
 
 bool use_orthographic = false;
 
@@ -304,12 +312,14 @@ bool createGraphicsPipeline() {
 		.pAttachments = &color_blend_attachment,
 	};
 
+	const VkDescriptorSetLayout set_layouts[] = {
+		vk_scene_descriptor_set_layout, // Set 0
+		vk_model_descriptor_set_layout  // Set 1
+	};
 	const VkPipelineLayoutCreateInfo pipeline_layout_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-		.setLayoutCount = 1,
-		.pSetLayouts = &vk_descriptor_set_layout,
-		.pushConstantRangeCount = 0,
-		.pPushConstantRanges = nullptr,
+		.setLayoutCount = 2, .pSetLayouts = set_layouts,
+		.pushConstantRangeCount = 0, .pPushConstantRanges = nullptr,
 	};
 
 	if (vkCreatePipelineLayout(graphics::internal::context.device, &pipeline_layout_info, nullptr, &vk_pipeline_layout) != VK_SUCCESS) {
@@ -404,111 +414,118 @@ bool createIndexBuffer() {
 	return true;
 }
 
-bool createUniformBuffer() {
-	const VkDeviceSize buffer_size = sizeof(UniformBufferObject);
-
+bool createSceneUniformBuffer() {
+	const VkDeviceSize buffer_size = sizeof(SceneUBO);
 	const VkBufferCreateInfo buffer_info = {
-		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-		.size = buffer_size,
-		.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = buffer_size,
+		.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 	};
-
 	const VmaAllocationCreateInfo allocation_info = {
 		.usage = VMA_MEMORY_USAGE_AUTO,
-		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-		         VMA_ALLOCATION_CREATE_MAPPED_BIT,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
 	};
-
 	if (vmaCreateBuffer(graphics::internal::context.allocator, &buffer_info, &allocation_info,
-	                    &vk_uniform_buffer, &vma_uniform_buffer_allocation,
-	                    &vma_uniform_buffer_info) != VK_SUCCESS) {
-		std::cerr << "Failed to create uniform buffer\n";
+	                    &vk_scene_uniform_buffer, &vma_scene_uniform_buffer_allocation,
+	                    &vma_scene_uniform_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create scene uniform buffer\n";
 		return false;
 	}
-
-	std::cout << "Uniform buffer created successfully\n";
+	std::cout << "Scene UBO created successfully\n";
 	return true;
 }
 
-bool createDescriptorSetLayout() {
-	const VkDescriptorSetLayoutBinding ubo_layout_binding = {
-		.binding = 0,                                        // binding = 0 в шейдере
-		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, // это uniform buffer
-		.descriptorCount = 1,
-		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,            // используется в vertex shader
-		.pImmutableSamplers = nullptr,
+bool createModelUniformBuffer() {
+	const VkDeviceSize buffer_size = sizeof(ModelUBO);
+	const VkBufferCreateInfo buffer_info = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = buffer_size,
+		.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 	};
-
-	const VkDescriptorSetLayoutCreateInfo layout_info = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-		.bindingCount = 1,
-		.pBindings = &ubo_layout_binding,
+	const VmaAllocationCreateInfo allocation_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
 	};
-
-	if (vkCreateDescriptorSetLayout(graphics::internal::context.device, &layout_info, nullptr, &vk_descriptor_set_layout) != VK_SUCCESS) {
-		std::cerr << "Failed to create descriptor set layout\n";
+	if (vmaCreateBuffer(graphics::internal::context.allocator, &buffer_info, &allocation_info,
+	                    &vk_model_uniform_buffer, &vma_model_uniform_buffer_allocation,
+	                    &vma_model_uniform_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create model uniform buffer\n";
 		return false;
 	}
+	std::cout << "Model UBO created successfully\n";
+	return true;
+}
 
-	std::cout << "Descriptor set layout created successfully\n";
+bool createSceneDescriptorSetLayout() {
+	const VkDescriptorSetLayoutBinding binding = {
+		.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1,
+		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+	};
+	const VkDescriptorSetLayoutCreateInfo layout_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1, .pBindings = &binding,
+	};
+	if (vkCreateDescriptorSetLayout(graphics::internal::context.device, &layout_info, nullptr, &vk_scene_descriptor_set_layout) != VK_SUCCESS) {
+		return false;
+	}
+	std::cout << "Scene Layout created successfully\n";
+	return true;
+}
+
+bool createModelDescriptorSetLayout() {
+	const VkDescriptorSetLayoutBinding binding = {
+		.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1,
+		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+	};
+	const VkDescriptorSetLayoutCreateInfo layout_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1, .pBindings = &binding,
+	};
+	if (vkCreateDescriptorSetLayout(graphics::internal::context.device, &layout_info, nullptr, &vk_model_descriptor_set_layout) != VK_SUCCESS) {
+		return false;
+	}
+	std::cout << "Model Layout created successfully\n";
 	return true;
 }
 
 bool createDescriptorPool() {
-	const VkDescriptorPoolSize pool_size = {
-		.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		.descriptorCount = 1,
-	};
-
+	const VkDescriptorPoolSize pool_size = { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 2 };
 	const VkDescriptorPoolCreateInfo pool_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-		.poolSizeCount = 1,
-		.pPoolSizes = &pool_size,
-		.maxSets = 1,
+		.poolSizeCount = 1, .pPoolSizes = &pool_size, .maxSets = 2, // 2 сета: сцена и модель
 	};
-
 	if (vkCreateDescriptorPool(graphics::internal::context.device, &pool_info, nullptr, &vk_descriptor_pool) != VK_SUCCESS) {
-		std::cerr << "Failed to create descriptor pool\n";
 		return false;
 	}
-
-	std::cout << "Descriptor pool created successfully\n";
 	return true;
 }
 
-bool createDescriptorSet() {
-	const VkDescriptorSetAllocateInfo alloc_info = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-		.descriptorPool = vk_descriptor_pool,
-		.descriptorSetCount = 1,
-		.pSetLayouts = &vk_descriptor_set_layout,
+bool createDescriptorSets() {
+	//сцена
+	const VkDescriptorSetAllocateInfo scene_alloc = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = vk_descriptor_pool,
+		.descriptorSetCount = 1, .pSetLayouts = &vk_scene_descriptor_set_layout,
 	};
+	if (vkAllocateDescriptorSets(graphics::internal::context.device, &scene_alloc, &vk_scene_descriptor_set) != VK_SUCCESS) return false;
 
-	if (vkAllocateDescriptorSets(graphics::internal::context.device, &alloc_info, &vk_descriptor_set) != VK_SUCCESS) {
-		std::cerr << "Failed to allocate descriptor set\n";
-		return false;
-	}
-
-	const VkDescriptorBufferInfo buffer_info = {
-		.buffer = vk_uniform_buffer,
-		.offset = 0,
-		.range = sizeof(UniformBufferObject),
+	const VkDescriptorBufferInfo scene_buf = { .buffer = vk_scene_uniform_buffer, .offset = 0, .range = sizeof(SceneUBO) };
+	const VkWriteDescriptorSet scene_write = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = vk_scene_descriptor_set,
+		.dstBinding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .pBufferInfo = &scene_buf,
 	};
+	vkUpdateDescriptorSets(graphics::internal::context.device, 1, &scene_write, 0, nullptr);
 
-	const VkWriteDescriptorSet descriptor_write = {
-		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = vk_descriptor_set,
-		.dstBinding = 0,
-		.dstArrayElement = 0,
-		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		.descriptorCount = 1,
-		.pBufferInfo = &buffer_info,
+	//модель
+	const VkDescriptorSetAllocateInfo model_alloc = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = vk_descriptor_pool,
+		.descriptorSetCount = 1, .pSetLayouts = &vk_model_descriptor_set_layout,
 	};
+	if (vkAllocateDescriptorSets(graphics::internal::context.device, &model_alloc, &vk_model_descriptor_set) != VK_SUCCESS) return false;
 
-	vkUpdateDescriptorSets(graphics::internal::context.device, 1, &descriptor_write, 0, nullptr);
+	const VkDescriptorBufferInfo model_buf = { .buffer = vk_model_uniform_buffer, .offset = 0, .range = sizeof(ModelUBO) };
+	const VkWriteDescriptorSet model_write = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = vk_model_descriptor_set,
+		.dstBinding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .pBufferInfo = &model_buf,
+	};
+	vkUpdateDescriptorSets(graphics::internal::context.device, 1, &model_write, 0, nullptr);
 
-	std::cout << "Descriptor set created successfully\n";
+	std::cout << "Descriptor Sets created successfully\n";
 	return true;
 }
 
@@ -537,10 +554,8 @@ bool initialize() {
 		return false;
 	}
 
-	if (!createDescriptorSetLayout()) {
-		std::cerr << "Failed to create descriptor set layout\n";
-		return false;
-	}
+	if (!createSceneDescriptorSetLayout()) return false;
+	if (!createModelDescriptorSetLayout()) return false;
 
 	if (!createGraphicsPipeline()) {
 		std::cerr << "Failed to create graphics pipeline\n";
@@ -562,20 +577,10 @@ bool initialize() {
 		return false;
 	}
 
-	if (!createUniformBuffer()) {
-		std::cerr << "Failed to create uniform buffer\n";
-		return false;
-	}
-
-	if (!createDescriptorPool()) {
-		std::cerr << "Failed to create descriptor pool\n";
-		return false;
-	}
-
-	if (!createDescriptorSet()) {
-		std::cerr << "Failed to create descriptor set\n";
-		return false;
-	}
+	if (!createSceneUniformBuffer()) return false;
+	if (!createModelUniformBuffer()) return false;
+	if (!createDescriptorPool()) return false;
+	if (!createDescriptorSets()) return false;
 
 	std::cout << "Application initialized successfully\n";
 	return true;
@@ -599,8 +604,10 @@ void shutdown() {
 	vmaDestroyBuffer(context.allocator, vk_index_buffer, vma_index_buffer_allocation);
 
 	vkDestroyDescriptorPool(context.device, vk_descriptor_pool, nullptr);
-	vkDestroyDescriptorSetLayout(context.device, vk_descriptor_set_layout, nullptr);
-	vmaDestroyBuffer(context.allocator, vk_uniform_buffer, vma_uniform_buffer_allocation);
+	vkDestroyDescriptorSetLayout(context.device, vk_scene_descriptor_set_layout, nullptr);
+	vkDestroyDescriptorSetLayout(context.device, vk_model_descriptor_set_layout, nullptr);
+	vmaDestroyBuffer(context.allocator, vk_scene_uniform_buffer, vma_scene_uniform_buffer_allocation);
+	vmaDestroyBuffer(context.allocator, vk_model_uniform_buffer, vma_model_uniform_buffer_allocation);
 }
 
 void update([[maybe_unused]] double time) {
@@ -657,7 +664,8 @@ void update([[maybe_unused]] double time) {
 		animation_time += float(delta_time) * animation_speed;
 	}
 
-	UniformBufferObject ubo{};
+	SceneUBO scene_ubo{};
+	ModelUBO model_ubo{};
 
 	// вращаем куб вокруг оси Y
 	glm::mat4 model = glm::mat4(1.0f);
@@ -688,10 +696,13 @@ void update([[maybe_unused]] double time) {
 	// масштаб
 	model = glm::scale(model, glm::vec3(cube_scale[0], cube_scale[1], cube_scale[2]));
 
-	ubo.model = model;
+	model_ubo.model = model;
+	model_ubo.albedo = glm::vec4(cube_color[0], cube_color[1], cube_color[2], material_shininess);
+	model_ubo.specularColor = glm::vec4(material_specular[0], material_specular[1], material_specular[2], 1.0f);
+
 
 	// View: камера смотрит на куб
-	ubo.view = glm::lookAt(glm::vec3(camera_pos[0], camera_pos[1], camera_pos[2]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	scene_ubo.view = glm::lookAt(glm::vec3(camera_pos[0], camera_pos[1], camera_pos[2]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	// Projection: переключение между перспективной и ортографической
 	const float aspect = float(graphics::internal::context.swapchain_extent.width) /
@@ -700,26 +711,23 @@ void update([[maybe_unused]] double time) {
 	if (use_orthographic) {
 		// ортографическая проекция
 		const float ortho_size = 2.0f;  // половина высоты видимой области
-		ubo.proj = glm::ortho(-ortho_size * aspect, ortho_size * aspect,
+		scene_ubo.proj = glm::ortho(-ortho_size * aspect, ortho_size * aspect,
 		                      -ortho_size, ortho_size,
 		                      -10.0f, 10.0f);
 	} else {
 		// перспективная проекция 
-	ubo.proj = glm::perspective(glm::radians(camera_fov), aspect, 0.1f, 10.0f);
+	scene_ubo.proj = glm::perspective(glm::radians(camera_fov), aspect, 0.1f, 10.0f);
 	}
 
-	ubo.proj[1][1] *= -1.0f;
+	scene_ubo.proj[1][1] *= -1.0f;
 
-	ubo.cameraPos = glm::vec4(camera_pos[0], camera_pos[1], camera_pos[2], 1.0f); 
-	
-	ubo.lightDir = glm::vec4(glm::normalize(glm::vec3(light_dir[0], light_dir[1], light_dir[2])), 0.0f);
-	ubo.lightColor = glm::vec4(light_color[0], light_color[1], light_color[2], light_intensity);
-	ubo.ambientColor = glm::vec4(ambient_color[0], ambient_color[1], ambient_color[2], 1.0f);
-	
-	ubo.albedo = glm::vec4(cube_color[0], cube_color[1], cube_color[2], material_shininess);
-	ubo.specularColor = glm::vec4(material_specular[0], material_specular[1], material_specular[2], 1.0f);
+	scene_ubo.cameraPos = glm::vec4(camera_pos[0], camera_pos[1], camera_pos[2], 1.0f);
+	scene_ubo.lightDir = glm::vec4(glm::normalize(glm::vec3(light_dir[0], light_dir[1], light_dir[2])), 0.0f);
+	scene_ubo.lightColor = glm::vec4(light_color[0], light_color[1], light_color[2], light_intensity);
+	scene_ubo.ambientColor = glm::vec4(ambient_color[0], ambient_color[1], ambient_color[2], 1.0f);
 
-	memcpy(vma_uniform_buffer_info.pMappedData, &ubo, sizeof(ubo));
+	memcpy(vma_scene_uniform_buffer_info.pMappedData, &scene_ubo, sizeof(scene_ubo));
+	memcpy(vma_model_uniform_buffer_info.pMappedData, &model_ubo, sizeof(model_ubo));
 }
 
 void render(const graphics::internal::FrameData& fd) {
@@ -741,7 +749,8 @@ void render(const graphics::internal::FrameData& fd) {
 
 	vkCmdBindPipeline(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
 
-		vkCmdBindDescriptorSets(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline_layout, 0, 1, &vk_descriptor_set, 0, nullptr);
+	const VkDescriptorSet sets[] = { vk_scene_descriptor_set, vk_model_descriptor_set };
+	vkCmdBindDescriptorSets(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline_layout, 0, 2, sets, 0, nullptr);
 
 	const VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(fd.command_buffer, 0, 1, &vk_vertex_buffer, offsets);

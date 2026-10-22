@@ -132,7 +132,17 @@ struct SpotLight {
 	glm::vec4 position;    // xyz = позиция, w = padding
 	glm::vec4 direction;   // xyz = направление, w = padding
 	glm::vec4 color;       // xyz = цвет, w = интенсивность
-	glm::vec4 params;      // x = cos(innerAngle), y = cos(outerAngle), z/w = padding
+	glm::vec4 params;      // x = cos(inner), y = cos(outer)
+	float inner_angle;   // в градусах
+	float outer_angle;   // в градусах
+	float padding[2];    // для выравнивания
+};
+
+struct SpotLightGPU {
+	glm::vec4 position;
+	glm::vec4 direction;
+	glm::vec4 color;
+	glm::vec4 params;
 };
 
 const int MAX_SPOT_LIGHTS = 10;
@@ -141,7 +151,10 @@ std::vector<SpotLight> spot_lights = {
 		glm::vec4(0.0f, 5.0f, 0.0f, 1.0f),    //сверху
 		glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),   //вниз
 		glm::vec4(1.0f, 1.0f, 1.0f, 10.0f),   //сolor + intensity
-		glm::vec4(glm::cos(glm::radians(15.0f)), glm::cos(glm::radians(25.0f)), 0.0f, 0.0f)
+		glm::vec4(0.0f),
+		15.0f,   // inner угол
+		25.0f,   // outer угол
+		{ 0.0f, 0.0f }
 	}
 };
 
@@ -523,7 +536,7 @@ bool createPointLightsBuffer() {
 }
 
 bool createSpotLightsBuffer() {
-	const VkDeviceSize buffer_size = sizeof(SpotLight) * MAX_SPOT_LIGHTS;
+	const VkDeviceSize buffer_size = sizeof(SpotLightGPU) * MAX_SPOT_LIGHTS;
 
 	const VkBufferCreateInfo buffer_info = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -824,6 +837,50 @@ void update([[maybe_unused]] double time) {
 		}
 	}
 
+		ImGui::Separator();
+	ImGui::Text("Spot Lights");
+
+	for (size_t i = 0; i < spot_lights.size(); ++i) {
+		ImGui::PushID(int(i) + 1000);
+		if (ImGui::TreeNode(("Spot #" + std::to_string(i)).c_str())) {
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::SliderFloat3("Position", &spot_lights[i].position.x, -10.0f, 10.0f);
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::SliderFloat3("Direction", &spot_lights[i].direction.x, -1.0f, 1.0f);
+			ImGui::ColorEdit3("Color", &spot_lights[i].color.x);
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::SliderFloat("Intensity", &spot_lights[i].color.w, 0.0f, 20.0f);
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::SliderFloat("Inner Angle", &spot_lights[i].inner_angle, 1.0f, 45.0f);
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::SliderFloat("Outer Angle", &spot_lights[i].outer_angle, 5.0f, 60.0f);
+
+			glm::vec3 dir = glm::normalize(glm::vec3(spot_lights[i].direction));
+			spot_lights[i].direction = glm::vec4(dir, 0.0f);
+
+			if (ImGui::Button("Remove")) {
+				spot_lights.erase(spot_lights.begin() + i);
+			}
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+	}
+
+	if (spot_lights.size() < MAX_SPOT_LIGHTS) {
+		if (ImGui::Button("Add Spot Light")) {
+			SpotLight new_light = {
+				glm::vec4(0.0f, 5.0f, 0.0f, 1.0f),
+				glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
+				glm::vec4(1.0f, 1.0f, 1.0f, 10.0f),
+				glm::vec4(0.0f),
+				15.0f,
+				25.0f,
+				{ 0.0f, 0.0f }
+			};
+			spot_lights.push_back(new_light);
+		}
+	}
+
 	ImGui::End();
 
 	const double current_time = time;
@@ -899,7 +956,22 @@ void update([[maybe_unused]] double time) {
 	memcpy(vma_scene_uniform_buffer_info.pMappedData, &scene_ubo, sizeof(scene_ubo));
 	memcpy(vma_model_uniform_buffer_info.pMappedData, &model_ubo, sizeof(model_ubo));
 	memcpy(vma_point_lights_buffer_info.pMappedData, point_lights.data(), point_lights.size() * sizeof(PointLight));
-	memcpy(vma_spot_lights_buffer_info.pMappedData, spot_lights.data(), spot_lights.size() * sizeof(SpotLight));
+
+	//подготавливаем данные для GPU
+	std::vector<SpotLightGPU> gpu_spot_lights;
+	gpu_spot_lights.reserve(spot_lights.size());
+	for (auto& sl : spot_lights) {
+		SpotLightGPU gpu_sl;
+		gpu_sl.position = sl.position;
+		gpu_sl.direction = sl.direction;
+		gpu_sl.color = sl.color;
+		gpu_sl.params.x = glm::cos(glm::radians(sl.inner_angle));
+		gpu_sl.params.y = glm::cos(glm::radians(sl.outer_angle));
+		gpu_sl.params.z = 0.0f;
+		gpu_sl.params.w = 0.0f;
+		gpu_spot_lights.push_back(gpu_sl);
+	}
+	memcpy(vma_spot_lights_buffer_info.pMappedData, gpu_spot_lights.data(), gpu_spot_lights.size() * sizeof(SpotLightGPU));
 }
 
 void render(const graphics::internal::FrameData& fd) {

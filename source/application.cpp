@@ -124,9 +124,31 @@ struct PointLight {
 //массив точечных источников 
 const int MAX_POINT_LIGHTS = 10;
 std::vector<PointLight> point_lights = {
-	{ glm::vec4(2.0f, 2.0f, 2.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 5.0f) }, // Красный
-	{ glm::vec4(-2.0f, -2.0f, 2.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 5.0f) } // Зелёный
+	{ glm::vec4(2.0f, 2.0f, 2.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 5.0f) }, 
+	{ glm::vec4(-2.0f, -2.0f, 2.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 5.0f) } 
 };
+
+struct SpotLight {
+	glm::vec4 position;    // xyz = позиция, w = padding
+	glm::vec4 direction;   // xyz = направление, w = padding
+	glm::vec4 color;       // xyz = цвет, w = интенсивность
+	glm::vec4 params;      // x = cos(innerAngle), y = cos(outerAngle), z/w = padding
+};
+
+const int MAX_SPOT_LIGHTS = 10;
+std::vector<SpotLight> spot_lights = {
+	{
+		glm::vec4(0.0f, 5.0f, 0.0f, 1.0f),    //сверху
+		glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),   //вниз
+		glm::vec4(1.0f, 1.0f, 1.0f, 10.0f),   //сolor + intensity
+		glm::vec4(glm::cos(glm::radians(15.0f)), glm::cos(glm::radians(25.0f)), 0.0f, 0.0f)
+	}
+};
+
+//storage Buffer для прожекторов
+VkBuffer vk_spot_lights_buffer;
+VmaAllocation vma_spot_lights_buffer_allocation;
+VmaAllocationInfo vma_spot_lights_buffer_info;
 
 //буферы для сцены и модели
 VkBuffer vk_scene_uniform_buffer;
@@ -500,6 +522,33 @@ bool createPointLightsBuffer() {
 	return true;
 }
 
+bool createSpotLightsBuffer() {
+	const VkDeviceSize buffer_size = sizeof(SpotLight) * MAX_SPOT_LIGHTS;
+
+	const VkBufferCreateInfo buffer_info = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = buffer_size,
+		.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	const VmaAllocationCreateInfo allocation_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+		         VMA_ALLOCATION_CREATE_MAPPED_BIT,
+	};
+
+	if (vmaCreateBuffer(graphics::internal::context.allocator, &buffer_info, &allocation_info,
+	                    &vk_spot_lights_buffer, &vma_spot_lights_buffer_allocation,
+	                    &vma_spot_lights_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create spot lights storage buffer\n";
+		return false;
+	}
+
+	std::cout << "Spot Lights Storage Buffer created successfully\n";
+	return true;
+}
+
 bool createSceneDescriptorSetLayout() {
 	const VkDescriptorSetLayoutBinding bindings[] = {
 		{
@@ -513,12 +562,18 @@ bool createSceneDescriptorSetLayout() {
 			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		},
+		{
+			.binding = 2,                                     
+			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		}
 	};
 
 	const VkDescriptorSetLayoutCreateInfo layout_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-		.bindingCount = 2,
+		.bindingCount = 3,                                     
 		.pBindings = bindings,
 	};
 
@@ -547,7 +602,7 @@ bool createModelDescriptorSetLayout() {
 bool createDescriptorPool() {
 	const VkDescriptorPoolSize pool_sizes[] = {
 		{ .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 2 }, //для Scene и Model
-		{ .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1 }  //для Point Lights
+		{ .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 2 }  //для Point Lights
 	};
 
 	const VkDescriptorPoolCreateInfo pool_info = {
@@ -573,6 +628,7 @@ bool createDescriptorSets() {
 
 	const VkDescriptorBufferInfo scene_buf = { .buffer = vk_scene_uniform_buffer, .offset = 0, .range = sizeof(SceneUBO) };
 	const VkDescriptorBufferInfo point_lights_buf = { .buffer = vk_point_lights_buffer, .offset = 0, .range = VK_WHOLE_SIZE };
+	const VkDescriptorBufferInfo spot_lights_buf = { .buffer = vk_spot_lights_buffer, .offset = 0, .range = VK_WHOLE_SIZE };
 
 	const VkWriteDescriptorSet scene_writes[] = {
 		{
@@ -582,10 +638,14 @@ bool createDescriptorSets() {
 		{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = vk_scene_descriptor_set,
 			.dstBinding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1, .pBufferInfo = &point_lights_buf,
+		},
+		{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = vk_scene_descriptor_set,
+			.dstBinding = 2, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1, .pBufferInfo = &spot_lights_buf,
 		}
 	};
 
-	vkUpdateDescriptorSets(graphics::internal::context.device, 2, scene_writes, 0, nullptr);
+	vkUpdateDescriptorSets(graphics::internal::context.device, 3, scene_writes, 0, nullptr);
 
 	//модель
 	const VkDescriptorSetAllocateInfo model_alloc = {
@@ -656,6 +716,7 @@ bool initialize() {
 	if (!createSceneUniformBuffer()) return false;
 	if (!createModelUniformBuffer()) return false;
 	if (!createPointLightsBuffer()) return false;
+	if (!createSpotLightsBuffer()) return false;
 	if (!createDescriptorPool()) return false;
 	if (!createDescriptorSets()) return false;
 
@@ -686,6 +747,7 @@ void shutdown() {
 	vmaDestroyBuffer(context.allocator, vk_scene_uniform_buffer, vma_scene_uniform_buffer_allocation);
 	vmaDestroyBuffer(context.allocator, vk_model_uniform_buffer, vma_model_uniform_buffer_allocation);
 	vmaDestroyBuffer(context.allocator, vk_point_lights_buffer, vma_point_lights_buffer_allocation);
+	vmaDestroyBuffer(context.allocator, vk_spot_lights_buffer, vma_spot_lights_buffer_allocation);
 }
 
 void update([[maybe_unused]] double time) {
@@ -837,6 +899,7 @@ void update([[maybe_unused]] double time) {
 	memcpy(vma_scene_uniform_buffer_info.pMappedData, &scene_ubo, sizeof(scene_ubo));
 	memcpy(vma_model_uniform_buffer_info.pMappedData, &model_ubo, sizeof(model_ubo));
 	memcpy(vma_point_lights_buffer_info.pMappedData, point_lights.data(), point_lights.size() * sizeof(PointLight));
+	memcpy(vma_spot_lights_buffer_info.pMappedData, spot_lights.data(), spot_lights.size() * sizeof(SpotLight));
 }
 
 void render(const graphics::internal::FrameData& fd) {

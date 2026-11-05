@@ -10,6 +10,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 namespace application {
 
 namespace {
@@ -30,55 +33,59 @@ struct Vertex {
 	float position[3];
 	float color[3];
 	float normal[3];
+	float uv[2];
 };
 
-Vertex makeVertex(float x, float y, float z, float nx, float ny, float nz) {
-	Vertex v;
-	v.position[0] = x;
-	v.position[1] = y;
-	v.position[2] = z;
+Vertex makeVertex(float x, float y, float z, float nx, float ny, float nz, float u, float v) {
+	Vertex vtx;
+	vtx.position[0] = x;
+	vtx.position[1] = y;
+	vtx.position[2] = z;
 
-	v.color[0] = (x + 0.3f) / 0.6f;
-	v.color[1] = (y + 0.3f) / 0.6f;
-	v.color[2] = (z + 0.3f) / 0.6f;
+	vtx.color[0] = (x + 0.3f) / 0.6f;
+	vtx.color[1] = (y + 0.3f) / 0.6f;
+	vtx.color[2] = (z + 0.3f) / 0.6f;
 
-	v.normal[0] = nx;
-	v.normal[1] = ny;
-	v.normal[2] = nz;
-	return v;
+	vtx.normal[0] = nx;
+	vtx.normal[1] = ny;
+	vtx.normal[2] = nz;
+
+	vtx.uv[0] = u;
+	vtx.uv[1] = v;
+	return vtx;
 }
 
 Vertex cube_vertices[] = {
 	//задняя грань (Z = -0.3), нормаль (0, 0, -1)
-	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
-	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
-	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
-	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f),
+	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f),
+	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f),
+	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f),
 	//передняя грань (Z = 0.3), нормаль (0, 0, 1)
-	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
-	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
-	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
-	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f),
+	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f),
+	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f),
 	//левая грань (X = -0.3), нормаль (-1, 0, 0)
-	makeVertex(-0.3f, -0.3f, -0.3f, -1.0f,  0.0f,  0.0f),
-	makeVertex(-0.3f,  0.3f, -0.3f, -1.0f,  0.0f,  0.0f),
-	makeVertex(-0.3f,  0.3f,  0.3f, -1.0f,  0.0f,  0.0f),
-	makeVertex(-0.3f, -0.3f,  0.3f, -1.0f,  0.0f,  0.0f),
+	makeVertex(-0.3f, -0.3f, -0.3f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f),
+	makeVertex(-0.3f,  0.3f, -0.3f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f),
+	makeVertex(-0.3f,  0.3f,  0.3f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f),
+	makeVertex(-0.3f, -0.3f,  0.3f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f),
 	//правая грань (X = 0.3), нормаль (1, 0, 0)
-	makeVertex( 0.3f, -0.3f, -0.3f,  1.0f,  0.0f,  0.0f),
-	makeVertex( 0.3f, -0.3f,  0.3f,  1.0f,  0.0f,  0.0f),
-	makeVertex( 0.3f,  0.3f,  0.3f,  1.0f,  0.0f,  0.0f),
-	makeVertex( 0.3f,  0.3f, -0.3f,  1.0f,  0.0f,  0.0f),
+	makeVertex( 0.3f, -0.3f, -0.3f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f),
 	//нижняя грань (Y = -0.3), нормаль (0, -1, 0)
-	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f),
-	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f),
-	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f),
-	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f),
+	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f),
+	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f),
+	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f),
 	//верхняя грань (Y = 0.3), нормаль (0, 1, 0)
-	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f),
-	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f),
-	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f),
-	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f),
+	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f),
+	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f),
 };
 
 const uint32_t cube_indices[] = {
@@ -207,6 +214,17 @@ float ambient_color[3] = { 0.1f, 0.1f, 0.1f };
 
 float material_specular[3] = { 1.0f, 1.0f, 1.0f };
 float material_shininess = 32.0f;
+
+//текстура
+VkImage vk_texture_image;
+VmaAllocation vma_texture_image_allocation;
+VkImageView vk_texture_image_view;
+VkSampler vk_texture_sampler;
+
+//дескриптор для текстуры
+VkDescriptorSetLayout vk_texture_descriptor_set_layout;
+VkDescriptorSet vk_texture_descriptor_set;
+VkCommandPool vk_texture_command_pool;
 } // namespace
 
 std::vector<char> readFile(const std::string& filename) {
@@ -286,13 +304,19 @@ bool createGraphicsPipeline() {
 			.format = VK_FORMAT_R32G32B32_SFLOAT, 
 			.offset = offsetof(Vertex, normal) 
 		}, 
+		{ 
+			.location = 3, 
+			.binding = 0, 
+			.format = VK_FORMAT_R32G32_SFLOAT,    
+			.offset = offsetof(Vertex, uv) 
+		},
 	};
 
 	const VkPipelineVertexInputStateCreateInfo vertex_input = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.vertexBindingDescriptionCount = 1,
 		.pVertexBindingDescriptions = &vertex_binding,
-		.vertexAttributeDescriptionCount = 3,
+		.vertexAttributeDescriptionCount = 4,
 		.pVertexAttributeDescriptions = vertex_attributes,
 	};
 
@@ -367,11 +391,12 @@ bool createGraphicsPipeline() {
 
 	const VkDescriptorSetLayout set_layouts[] = {
 		vk_scene_descriptor_set_layout, // Set 0
-		vk_model_descriptor_set_layout  // Set 1
+		vk_model_descriptor_set_layout,  // Set 1
+		vk_texture_descriptor_set_layout
 	};
 	const VkPipelineLayoutCreateInfo pipeline_layout_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-		.setLayoutCount = 2, .pSetLayouts = set_layouts,
+		.setLayoutCount = 3, .pSetLayouts = set_layouts,
 		.pushConstantRangeCount = 0, .pPushConstantRanges = nullptr,
 	};
 
@@ -562,6 +587,199 @@ bool createSpotLightsBuffer() {
 	return true;
 }
 
+void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+	//создаём временный command buffer
+	VkCommandBufferAllocateInfo alloc_info = {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandPool = vk_texture_command_pool; // Используем твой основной пул
+	alloc_info.commandBufferCount = 1;
+
+	VkCommandBuffer command_buffer;
+	vkAllocateCommandBuffers(graphics::internal::context.device, &alloc_info, &command_buffer);
+
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(command_buffer, &begin_info);
+
+	//переводим изображение в layout TRANSFER_DST_OPTIMAL
+	VkImageMemoryBarrier barrier = {};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+	barrier.srcAccessMask = 0;
+	barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+	vkCmdPipelineBarrier(command_buffer,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+	//копируем данные
+	VkBufferImageCopy region = {};
+	region.bufferOffset = 0;
+	region.bufferRowLength = 0;
+	region.bufferImageHeight = 0;
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = 0;
+	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.layerCount = 1;
+	region.imageOffset = {0, 0, 0};
+	region.imageExtent = {width, height, 1};
+
+	vkCmdCopyBufferToImage(command_buffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+	//переводим изображение в layout SHADER_READ_ONLY_OPTIMAL 
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+	vkCmdPipelineBarrier(command_buffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+	vkEndCommandBuffer(command_buffer);
+
+	//отправляем команды на GPU
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffer;
+
+	vkQueueSubmit(graphics::internal::context.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(graphics::internal::context.graphics_queue); 
+
+	vkFreeCommandBuffers(graphics::internal::context.device, vk_texture_command_pool, 1, &command_buffer);
+}
+
+bool createTextureFromFile(const char* filename) {
+	//загружаем пиксели через stb_image
+	int tex_width, tex_height, tex_channels;
+	stbi_uc* pixels = stbi_load(filename, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+	if (!pixels) {
+		std::cerr << "Failed to load texture: " << filename << '\n';
+		return false;
+	}
+
+	const VkDeviceSize image_size = VkDeviceSize(tex_width) * VkDeviceSize(tex_height) * 4;
+
+	//создаём staging buffer 
+	VkBuffer staging_buffer;
+	VmaAllocation staging_buffer_allocation;
+	VmaAllocationInfo staging_buffer_info;
+
+	const VkBufferCreateInfo staging_buffer_info_create = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = image_size,
+		.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	const VmaAllocationCreateInfo staging_alloc_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+	};
+
+	if (vmaCreateBuffer(graphics::internal::context.allocator, &staging_buffer_info_create, &staging_alloc_info,
+	                    &staging_buffer, &staging_buffer_allocation, &staging_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create staging buffer for texture\n";
+		stbi_image_free(pixels);
+		return false;
+	}
+
+	//копируем пиксели в staging buffer
+	memcpy(staging_buffer_info.pMappedData, pixels, image_size);
+	stbi_image_free(pixels);
+
+	//создаём VkImage 
+	const VkImageCreateInfo image_info = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		.imageType = VK_IMAGE_TYPE_2D,
+		.format = VK_FORMAT_R8G8B8A8_SRGB,  // 4 канала, sRGB
+		.extent = { uint32_t(tex_width), uint32_t(tex_height), 1 },
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.tiling = VK_IMAGE_TILING_OPTIMAL,
+		.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	};
+
+	const VmaAllocationCreateInfo image_alloc_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+	};
+
+	if (vmaCreateImage(graphics::internal::context.allocator, &image_info, &image_alloc_info,
+	                   &vk_texture_image, &vma_texture_image_allocation, nullptr) != VK_SUCCESS) {
+		std::cerr << "Failed to create texture image\n";
+		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
+		return false;
+	}
+
+	//копируем staging buffer в VkImage через команды GPU
+	copyBufferToImage(staging_buffer, vk_texture_image, uint32_t(tex_width), uint32_t(tex_height));
+
+	//создаём VkImageView
+	const VkImageViewCreateInfo view_info = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+		.image = vk_texture_image,
+		.viewType = VK_IMAGE_VIEW_TYPE_2D,
+		.format = VK_FORMAT_R8G8B8A8_SRGB,
+		.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1,
+		},
+	};
+
+	if (vkCreateImageView(graphics::internal::context.device, &view_info, nullptr, &vk_texture_image_view) != VK_SUCCESS) {
+		std::cerr << "Failed to create texture image view\n";
+		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
+		return false;
+	}
+
+	//создаём VkSampler
+	const VkSamplerCreateInfo sampler_info = {
+		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+		.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		.anisotropyEnable = VK_FALSE,
+		.maxAnisotropy = 1.0f,
+		.compareEnable = VK_FALSE,
+		.compareOp = VK_COMPARE_OP_ALWAYS,
+		.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+		.unnormalizedCoordinates = VK_FALSE,
+	};
+
+	if (vkCreateSampler(graphics::internal::context.device, &sampler_info, nullptr, &vk_texture_sampler) != VK_SUCCESS) {
+		std::cerr << "Failed to create texture sampler\n";
+		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
+		return false;
+	}
+
+	//уничтожаем staging buffer
+	vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
+
+	std::cout << "Texture loaded successfully: " << tex_width << "x" << tex_height << '\n';
+	return true;
+}
+
 bool createSceneDescriptorSetLayout() {
 	const VkDescriptorSetLayoutBinding bindings[] = {
 		{
@@ -612,17 +830,74 @@ bool createModelDescriptorSetLayout() {
 	return true;
 }
 
+bool createTextureDescriptorSetLayout() {
+	const VkDescriptorSetLayoutBinding binding = {
+		.binding = 0,
+		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		.descriptorCount = 1,
+		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		.pImmutableSamplers = nullptr,
+	};
+
+	const VkDescriptorSetLayoutCreateInfo layout_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.bindingCount = 1,
+		.pBindings = &binding,
+	};
+
+	if (vkCreateDescriptorSetLayout(graphics::internal::context.device, &layout_info, nullptr, &vk_texture_descriptor_set_layout) != VK_SUCCESS) {
+		return false;
+	}
+	std::cout << "Texture Layout created successfully\n";
+	return true;
+}
+
+bool createTextureDescriptorSet() {
+	const VkDescriptorSetAllocateInfo alloc_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.descriptorPool = vk_descriptor_pool,
+		.descriptorSetCount = 1,
+		.pSetLayouts = &vk_texture_descriptor_set_layout,
+	};
+
+	if (vkAllocateDescriptorSets(graphics::internal::context.device, &alloc_info, &vk_texture_descriptor_set) != VK_SUCCESS) {
+		std::cerr << "Failed to allocate texture descriptor set\n";
+		return false;
+	}
+
+	const VkDescriptorImageInfo image_info = {
+		.sampler = vk_texture_sampler,
+		.imageView = vk_texture_image_view,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	const VkWriteDescriptorSet descriptor_write = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = vk_texture_descriptor_set,
+		.dstBinding = 0,
+		.dstArrayElement = 0,
+		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		.descriptorCount = 1,
+		.pImageInfo = &image_info,
+	};
+
+	vkUpdateDescriptorSets(graphics::internal::context.device, 1, &descriptor_write, 0, nullptr);
+	std::cout << "Texture Descriptor Set created successfully\n";
+	return true;
+}
+
 bool createDescriptorPool() {
 	const VkDescriptorPoolSize pool_sizes[] = {
-		{ .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 2 }, //для Scene и Model
-		{ .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 2 }  //для Point Lights
+		{ .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 2 },
+		{ .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 2 }, 
+		{ .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 1 } 
 	};
 
 	const VkDescriptorPoolCreateInfo pool_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-		.poolSizeCount = 2,
+		.poolSizeCount = 3,
 		.pPoolSizes = pool_sizes,
-		.maxSets = 2,
+		.maxSets = 3,
 	};
 
 	if (vkCreateDescriptorPool(graphics::internal::context.device, &pool_info, nullptr, &vk_descriptor_pool) != VK_SUCCESS) {
@@ -706,6 +981,11 @@ bool initialize() {
 	if (!createSceneDescriptorSetLayout()) return false;
 	if (!createModelDescriptorSetLayout()) return false;
 
+	if (!createTextureDescriptorSetLayout()) {
+			std::cerr << "Failed to create texture descriptor set layout\n";
+			return false;
+	}
+
 	if (!createGraphicsPipeline()) {
 		std::cerr << "Failed to create graphics pipeline\n";
 		return false;
@@ -730,8 +1010,42 @@ bool initialize() {
 	if (!createModelUniformBuffer()) return false;
 	if (!createPointLightsBuffer()) return false;
 	if (!createSpotLightsBuffer()) return false;
-	if (!createDescriptorPool()) return false;
-	if (!createDescriptorSets()) return false;
+
+	
+
+	if (!createDescriptorPool()) {
+		std::cerr << "Failed to create descriptor pool\n";
+		return false;
+	}
+
+	if (!createDescriptorSets()) {
+		std::cerr << "Failed to create descriptor sets\n";
+		return false;
+	}
+
+	//создаём command pool для текстуры
+	const VkCommandPoolCreateInfo pool_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+		.queueFamilyIndex = graphics::internal::context.graphics_queue_index,
+	};
+
+	if (vkCreateCommandPool(graphics::internal::context.device, &pool_info, nullptr, &vk_texture_command_pool) != VK_SUCCESS) {
+		std::cerr << "Failed to create texture command pool\n";
+		return false;
+	}
+
+	//загружаем текстуру (создаёт image, view, sampler)
+	if (!createTextureFromFile("textures/texture.jpeg")) {
+		std::cerr << "Failed to create texture from file\n";
+		return false;
+	}
+
+	//создаём descriptor set для текстуры (теперь, когда image view и sampler готовы)
+	if (!createTextureDescriptorSet()) {
+		std::cerr << "Failed to create texture descriptor set\n";
+		return false;
+	}
 
 	std::cout << "Application initialized successfully\n";
 	return true;
@@ -761,6 +1075,12 @@ void shutdown() {
 	vmaDestroyBuffer(context.allocator, vk_model_uniform_buffer, vma_model_uniform_buffer_allocation);
 	vmaDestroyBuffer(context.allocator, vk_point_lights_buffer, vma_point_lights_buffer_allocation);
 	vmaDestroyBuffer(context.allocator, vk_spot_lights_buffer, vma_spot_lights_buffer_allocation);
+
+	vkDestroySampler(context.device, vk_texture_sampler, nullptr);
+	vkDestroyImageView(context.device, vk_texture_image_view, nullptr);
+	vmaDestroyImage(context.allocator, vk_texture_image, vma_texture_image_allocation);
+	vkDestroyDescriptorSetLayout(context.device, vk_texture_descriptor_set_layout, nullptr);
+	vkDestroyCommandPool(context.device, vk_texture_command_pool, nullptr);
 }
 
 void update([[maybe_unused]] double time) {
@@ -993,8 +1313,8 @@ void render(const graphics::internal::FrameData& fd) {
 
 	vkCmdBindPipeline(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
 
-	const VkDescriptorSet sets[] = { vk_scene_descriptor_set, vk_model_descriptor_set };
-	vkCmdBindDescriptorSets(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline_layout, 0, 2, sets, 0, nullptr);
+	const VkDescriptorSet sets[] = { vk_scene_descriptor_set, vk_model_descriptor_set, vk_texture_descriptor_set };
+	vkCmdBindDescriptorSets(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline_layout, 0, 3, sets, 0, nullptr);
 
 	const VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(fd.command_buffer, 0, 1, &vk_vertex_buffer, offsets);

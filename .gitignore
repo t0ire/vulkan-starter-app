@@ -2,3 +2,5 @@ build*/
 shaders/*.spv
 imgui.ini
 .DS_Store
+textures/*.png
+textures/*.jpeg

@@ -3,6 +3,7 @@
 layout(location = 0) in vec3 fragPos;
 layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec3 fragColor;
+layout(location = 3) in vec2 fragUV;   
 
 layout(location = 0) out vec4 outColor;
 
@@ -27,7 +28,7 @@ struct SpotLight {
     vec4 position;
     vec4 direction;
     vec4 color;
-    vec4 params;   // x = cos(inner), y = cos(outer)
+    vec4 params;
 };
 layout(set = 0, binding = 2) readonly buffer SpotLights {
     SpotLight spotLights[];
@@ -39,6 +40,8 @@ layout(set = 1, binding = 0) uniform ModelUBO {
     vec4 specularColor;
 } model_ubo;
 
+layout(set = 2, binding = 0) uniform sampler2D albedoSampler;
+
 void main() {
     vec3 N = normalize(fragNormal);
     vec3 V = normalize(scene.cameraPos.xyz - fragPos);
@@ -47,14 +50,16 @@ void main() {
         N = -N;
     }
 
+    vec3 albedo = texture(albedoSampler, fragUV).rgb;
+
     float shininess = model_ubo.albedo.w;
 
     //направленный свет
     vec3 L = normalize(-scene.lightDir.xyz);
     vec3 H = normalize(L + V);
-    vec3 ambient = scene.ambientColor.xyz * model_ubo.albedo.xyz;
+    vec3 ambient = scene.ambientColor.xyz * albedo;
     float diff = max(dot(N, L), 0.0);
-    vec3 diffuse = diff * scene.lightColor.xyz * scene.lightColor.w * model_ubo.albedo.xyz;
+    vec3 diffuse = diff * scene.lightColor.xyz * scene.lightColor.w * albedo;
     float spec = pow(max(dot(N, H), 0.0), shininess);
     vec3 specular = spec * scene.lightColor.xyz * scene.lightColor.w * model_ubo.specularColor.xyz;
     vec3 result = ambient + diffuse + specular;
@@ -70,7 +75,7 @@ void main() {
         float attenuation = 1.0 / (distance * distance);
 
         float diffp = max(dot(N, Lp), 0.0);
-        vec3 diffuseP = diffp * lightColor * intensity * attenuation * model_ubo.albedo.xyz;
+        vec3 diffuseP = diffp * lightColor * intensity * attenuation * albedo;
 
         vec3 Hp = normalize(Lp + V);
         float specp = pow(max(dot(N, Hp), 0.0), shininess);
@@ -97,7 +102,7 @@ void main() {
 
         if (spotFactor > 0.0) {
             float diffs = max(dot(N, Ls), 0.0);
-            vec3 diffuseS = diffs * spotFactor * spotColor * intensity * attenuation * model_ubo.albedo.xyz;
+            vec3 diffuseS = diffs * spotFactor * spotColor * intensity * attenuation * albedo;
 
             vec3 Hs = normalize(Ls + V);
             float specs = pow(max(dot(N, Hs), 0.0), shininess);
@@ -107,6 +112,5 @@ void main() {
         }
     }
 
-    result *= fragColor;
     outColor = vec4(result, 1.0);
 }

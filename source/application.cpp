@@ -430,34 +430,95 @@ bool createGraphicsPipeline() {
 	return true;
 }
 
+void copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+	//создаём временный command buffer
+	VkCommandBufferAllocateInfo alloc_info = {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandPool = vk_texture_command_pool;
+	alloc_info.commandBufferCount = 1;
+
+	VkCommandBuffer command_buffer;
+	vkAllocateCommandBuffers(graphics::internal::context.device, &alloc_info, &command_buffer);
+
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(command_buffer, &begin_info);
+
+	VkBufferCopy copy_region = {};
+	copy_region.size = size;
+	vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+
+	vkEndCommandBuffer(command_buffer);
+
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffer;
+
+	vkQueueSubmit(graphics::internal::context.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(graphics::internal::context.graphics_queue);
+
+	vkFreeCommandBuffers(graphics::internal::context.device, vk_texture_command_pool, 1, &command_buffer);
+}
+
 bool createVertexBuffer() {
 	const VkDeviceSize buffer_size = sizeof(cube_vertices);
 
+	//создаём staging buffer 
+	VkBuffer staging_buffer;
+	VmaAllocation staging_buffer_allocation;
+	VmaAllocationInfo staging_buffer_info;
+
+	const VkBufferCreateInfo staging_buffer_info_create = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = buffer_size,
+		.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	const VmaAllocationCreateInfo staging_alloc_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+	};
+
+	if (vmaCreateBuffer(graphics::internal::context.allocator, &staging_buffer_info_create, &staging_alloc_info,
+	                    &staging_buffer, &staging_buffer_allocation, &staging_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create staging buffer for vertex buffer\n";
+		return false;
+	}
+
+	//копируем данные в staging
+	memcpy(staging_buffer_info.pMappedData, cube_vertices, buffer_size);
+
+	//создаём vertex buffer в VRAM 
 	const VkBufferCreateInfo buffer_info = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		.size = buffer_size,
-		.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,  // это vertex buffer
+		.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 	};
 
 	const VmaAllocationCreateInfo allocation_info = {
-		.usage = VMA_MEMORY_USAGE_AUTO,
-		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-		         VMA_ALLOCATION_CREATE_MAPPED_BIT,
+		.usage = VMA_MEMORY_USAGE_AUTO,  
 	};
 
-	VmaAllocationInfo allocation_result;
 	if (vmaCreateBuffer(graphics::internal::context.allocator, &buffer_info, &allocation_info,
 	                    &vk_vertex_buffer, &vma_vertex_buffer_allocation,
-	                    &allocation_result) != VK_SUCCESS) {
+	                    nullptr) != VK_SUCCESS) {
 		std::cerr << "Failed to create vertex buffer\n";
+		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
 		return false;
 	}
 
-	// копируем данные вершин в память GPU
-	memcpy(allocation_result.pMappedData, cube_vertices, buffer_size);
+	//копируем staging → vertex buffer (через GPU)
+	copyBuffer(staging_buffer, vk_vertex_buffer, buffer_size);
 
-	std::cout << "Vertex buffer created successfully\n";
+	//уничтожаем staging
+	vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
+
+	std::cout << "Vertex buffer (VRAM) created successfully\n";
 	return true;
 }
 
@@ -465,30 +526,54 @@ bool createIndexBuffer() {
 	index_count = sizeof(cube_indices) / sizeof(cube_indices[0]);
 	const VkDeviceSize buffer_size = sizeof(cube_indices);
 
+	VkBuffer staging_buffer;
+	VmaAllocation staging_buffer_allocation;
+	VmaAllocationInfo staging_buffer_info;
+
+	const VkBufferCreateInfo staging_buffer_info_create = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = buffer_size,
+		.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	const VmaAllocationCreateInfo staging_alloc_info = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+	};
+
+	if (vmaCreateBuffer(graphics::internal::context.allocator, &staging_buffer_info_create, &staging_alloc_info,
+	                    &staging_buffer, &staging_buffer_allocation, &staging_buffer_info) != VK_SUCCESS) {
+		std::cerr << "Failed to create staging buffer for index buffer\n";
+		return false;
+	}
+
+	memcpy(staging_buffer_info.pMappedData, cube_indices, buffer_size);
+
 	const VkBufferCreateInfo buffer_info = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		.size = buffer_size,
-		.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  // это index buffer
+		.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 	};
 
 	const VmaAllocationCreateInfo allocation_info = {
 		.usage = VMA_MEMORY_USAGE_AUTO,
-		.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-		         VMA_ALLOCATION_CREATE_MAPPED_BIT,
 	};
 
-	VmaAllocationInfo allocation_result;
 	if (vmaCreateBuffer(graphics::internal::context.allocator, &buffer_info, &allocation_info,
 	                    &vk_index_buffer, &vma_index_buffer_allocation,
-	                    &allocation_result) != VK_SUCCESS) {
+	                    nullptr) != VK_SUCCESS) {
 		std::cerr << "Failed to create index buffer\n";
+		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
 		return false;
 	}
 
-	memcpy(allocation_result.pMappedData, cube_indices, buffer_size);
+	copyBuffer(staging_buffer, vk_index_buffer, buffer_size);
 
-	std::cout << "Index buffer created successfully\n";
+	vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
+
+	std::cout << "Index buffer (VRAM) created successfully\n";
 	return true;
 }
 
@@ -996,6 +1081,18 @@ bool initialize() {
 	vk_shader_module_vert = VK_NULL_HANDLE;
 	vk_shader_module_frag = VK_NULL_HANDLE;
 
+	//создаём command pool для текстуры
+	const VkCommandPoolCreateInfo pool_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+		.queueFamilyIndex = graphics::internal::context.graphics_queue_index,
+	};
+
+	if (vkCreateCommandPool(graphics::internal::context.device, &pool_info, nullptr, &vk_texture_command_pool) != VK_SUCCESS) {
+		std::cerr << "Failed to create texture command pool\n";
+		return false;
+	}
+
 	if (!createVertexBuffer()) {
 		std::cerr << "Failed to create vertex buffer\n";
 		return false;
@@ -1023,17 +1120,7 @@ bool initialize() {
 		return false;
 	}
 
-	//создаём command pool для текстуры
-	const VkCommandPoolCreateInfo pool_info = {
-		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-		.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-		.queueFamilyIndex = graphics::internal::context.graphics_queue_index,
-	};
-
-	if (vkCreateCommandPool(graphics::internal::context.device, &pool_info, nullptr, &vk_texture_command_pool) != VK_SUCCESS) {
-		std::cerr << "Failed to create texture command pool\n";
-		return false;
-	}
+	
 
 	//загружаем текстуру (создаёт image, view, sampler)
 	if (!createTextureFromFile("textures/texture.jpeg")) {

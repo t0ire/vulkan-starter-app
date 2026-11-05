@@ -56,36 +56,47 @@ Vertex makeVertex(float x, float y, float z, float nx, float ny, float nz, float
 }
 
 Vertex cube_vertices[] = {
-	//задняя грань (Z = -0.3), нормаль (0, 0, -1)
-	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f),
-	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f),
-	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f),
-	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f),
-	//передняя грань (Z = 0.3), нормаль (0, 0, 1)
-	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f),
-	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f),
-	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f),
-	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f),
-	//левая грань (X = -0.3), нормаль (-1, 0, 0)
-	makeVertex(-0.3f, -0.3f, -0.3f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f),
-	makeVertex(-0.3f,  0.3f, -0.3f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f),
-	makeVertex(-0.3f,  0.3f,  0.3f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f),
-	makeVertex(-0.3f, -0.3f,  0.3f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f),
-	//правая грань (X = 0.3), нормаль (1, 0, 0)
-	makeVertex( 0.3f, -0.3f, -0.3f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f),
-	makeVertex( 0.3f, -0.3f,  0.3f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f),
-	makeVertex( 0.3f,  0.3f,  0.3f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f),
-	makeVertex( 0.3f,  0.3f, -0.3f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f),
-	//нижняя грань (Y = -0.3), нормаль (0, -1, 0)
-	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f),
-	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f),
-	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f),
-	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f),
-	//верхняя грань (Y = 0.3), нормаль (0, 1, 0)
-	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f),
-	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f),
-	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f),
-	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f),
+	// ЗАДНЯЯ грань (Z = -0.3) — BACK (хвост)
+	// UV: (0.777, 0.333) — (0.988, 0.681)
+	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.777f, 0.681f),
+	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.988f, 0.681f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.988f, 0.333f),
+	makeVertex(-0.3f,  0.3f, -0.3f,  0.0f,  0.0f, -1.0f,  0.777f, 0.333f),
+
+	// ПЕРЕДНЯЯ грань (Z = 0.3) — FRONT (лицо)
+	// UV: (0.327, 0.333) — (0.559, 0.681)
+	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.327f, 0.681f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.559f, 0.681f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.559f, 0.333f),
+	makeVertex(-0.3f,  0.3f,  0.3f,  0.0f,  0.0f,  1.0f,  0.327f, 0.333f),
+
+	// ЛЕВАЯ грань (X = -0.3) — LEFT (бок)
+	// UV: (0.012, 0.333) — (0.327, 0.681)
+	makeVertex(-0.3f, -0.3f, -0.3f, -1.0f,  0.0f,  0.0f,  0.012f, 0.681f),
+	makeVertex(-0.3f,  0.3f, -0.3f, -1.0f,  0.0f,  0.0f,  0.012f, 0.333f),
+	makeVertex(-0.3f,  0.3f,  0.3f, -1.0f,  0.0f,  0.0f,  0.327f, 0.333f),
+	makeVertex(-0.3f, -0.3f,  0.3f, -1.0f,  0.0f,  0.0f,  0.327f, 0.681f),
+
+	// ПРАВАЯ грань (X = 0.3) — RIGHT (бок)
+	// UV: (0.559, 0.333) — (0.777, 0.681)
+	makeVertex( 0.3f, -0.3f, -0.3f,  1.0f,  0.0f,  0.0f,  0.777f, 0.681f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  1.0f,  0.0f,  0.0f,  0.559f, 0.681f),
+	makeVertex( 0.3f,  0.3f,  0.3f,  1.0f,  0.0f,  0.0f,  0.559f, 0.333f),
+	makeVertex( 0.3f,  0.3f, -0.3f,  1.0f,  0.0f,  0.0f,  0.777f, 0.333f),
+
+	// НИЖНЯЯ грань (Y = -0.3) — BOTTOM (грудка)
+	// UV: (0.327, 0.681) — (0.559, 0.971)
+	makeVertex(-0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f,  0.327f, 0.971f),
+	makeVertex( 0.3f, -0.3f, -0.3f,  0.0f, -1.0f,  0.0f,  0.559f, 0.971f),
+	makeVertex( 0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f,  0.559f, 0.681f),
+	makeVertex(-0.3f, -0.3f,  0.3f,  0.0f, -1.0f,  0.0f,  0.327f, 0.681f),
+
+	// ВЕРХНЯЯ грань (Y = 0.3) — TOP (уши)
+	// UV: (0.327, 0.024) — (0.559, 0.333)
+	makeVertex(0.3f,  0.3f, -0.3f,  0.0f,  1.0f,  0.0f,  0.559f, 0.024f),  // ← правый-верх
+	makeVertex(-0.3f,  0.3f,  -0.3f,  0.0f,  1.0f,  0.0f,  0.327f, 0.024f),  // ← левый-верх
+	makeVertex( -0.3f,  0.3f,  0.3f,  0.0f,  1.0f,  0.0f,  0.327f, 0.333f),  // ← левый-низ
+	makeVertex( 0.3f,  0.3f, 0.3f,  0.0f,  1.0f,  0.0f,  0.559f, 0.333f),  // ← правый-низ
 };
 
 const uint32_t cube_indices[] = {
@@ -152,6 +163,11 @@ struct SpotLightGPU {
 	glm::vec4 params;
 };
 
+struct PushConstants {
+	float time;
+	uint32_t useTricky;
+};
+
 const int MAX_SPOT_LIGHTS = 10;
 std::vector<SpotLight> spot_lights = {
 	{
@@ -215,16 +231,25 @@ float ambient_color[3] = { 0.1f, 0.1f, 0.1f };
 float material_specular[3] = { 1.0f, 1.0f, 1.0f };
 float material_shininess = 32.0f;
 
-//текстура
-VkImage vk_texture_image;
-VmaAllocation vma_texture_image_allocation;
-VkImageView vk_texture_image_view;
-VkSampler vk_texture_sampler;
+//cтруктура для одной текстуры
+struct Texture {
+	VkImage image;
+	VmaAllocation allocation;
+	VkImageView image_view;
+	VkDescriptorSet descriptor_set;
+	std::string name;   // имя для ImGui
+};
 
-//дескриптор для текстуры
+//общие для всех текстур 
+VkSampler vk_texture_sampler;
 VkDescriptorSetLayout vk_texture_descriptor_set_layout;
-VkDescriptorSet vk_texture_descriptor_set;
 VkCommandPool vk_texture_command_pool;
+
+std::vector<Texture> textures;
+
+int current_texture_index = 0;
+float effect_time = 0.0f;
+bool use_tricky_sampling = false;
 } // namespace
 
 std::vector<char> readFile(const std::string& filename) {
@@ -394,10 +419,17 @@ bool createGraphicsPipeline() {
 		vk_model_descriptor_set_layout,  // Set 1
 		vk_texture_descriptor_set_layout
 	};
+
+		const VkPushConstantRange push_range = {
+		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		.offset = 0,
+		.size = sizeof(PushConstants),
+	};
+
 	const VkPipelineLayoutCreateInfo pipeline_layout_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.setLayoutCount = 3, .pSetLayouts = set_layouts,
-		.pushConstantRangeCount = 0, .pPushConstantRanges = nullptr,
+		.pushConstantRangeCount = 1, .pPushConstantRanges = &push_range,
 	};
 
 	if (vkCreatePipelineLayout(graphics::internal::context.device, &pipeline_layout_info, nullptr, &vk_pipeline_layout) != VK_SUCCESS) {
@@ -746,8 +778,7 @@ void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t 
 	vkFreeCommandBuffers(graphics::internal::context.device, vk_texture_command_pool, 1, &command_buffer);
 }
 
-bool createTextureFromFile(const char* filename) {
-	//загружаем пиксели через stb_image
+bool createTextureFromFile(const char* filename, const std::string& name) {
 	int tex_width, tex_height, tex_channels;
 	stbi_uc* pixels = stbi_load(filename, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 	if (!pixels) {
@@ -757,7 +788,6 @@ bool createTextureFromFile(const char* filename) {
 
 	const VkDeviceSize image_size = VkDeviceSize(tex_width) * VkDeviceSize(tex_height) * 4;
 
-	//создаём staging buffer 
 	VkBuffer staging_buffer;
 	VmaAllocation staging_buffer_allocation;
 	VmaAllocationInfo staging_buffer_info;
@@ -781,15 +811,16 @@ bool createTextureFromFile(const char* filename) {
 		return false;
 	}
 
-	//копируем пиксели в staging buffer
 	memcpy(staging_buffer_info.pMappedData, pixels, image_size);
 	stbi_image_free(pixels);
 
-	//создаём VkImage 
+	Texture tex;
+	tex.name = name;
+
 	const VkImageCreateInfo image_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_2D,
-		.format = VK_FORMAT_R8G8B8A8_SRGB,  // 4 канала, sRGB
+		.format = VK_FORMAT_R8G8B8A8_SRGB,
 		.extent = { uint32_t(tex_width), uint32_t(tex_height), 1 },
 		.mipLevels = 1,
 		.arrayLayers = 1,
@@ -805,19 +836,17 @@ bool createTextureFromFile(const char* filename) {
 	};
 
 	if (vmaCreateImage(graphics::internal::context.allocator, &image_info, &image_alloc_info,
-	                   &vk_texture_image, &vma_texture_image_allocation, nullptr) != VK_SUCCESS) {
+	                   &tex.image, &tex.allocation, nullptr) != VK_SUCCESS) {
 		std::cerr << "Failed to create texture image\n";
 		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
 		return false;
 	}
 
-	//копируем staging buffer в VkImage через команды GPU
-	copyBufferToImage(staging_buffer, vk_texture_image, uint32_t(tex_width), uint32_t(tex_height));
+	copyBufferToImage(staging_buffer, tex.image, uint32_t(tex_width), uint32_t(tex_height));
 
-	//создаём VkImageView
 	const VkImageViewCreateInfo view_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-		.image = vk_texture_image,
+		.image = tex.image,
 		.viewType = VK_IMAGE_VIEW_TYPE_2D,
 		.format = VK_FORMAT_R8G8B8A8_SRGB,
 		.subresourceRange = {
@@ -829,13 +858,21 @@ bool createTextureFromFile(const char* filename) {
 		},
 	};
 
-	if (vkCreateImageView(graphics::internal::context.device, &view_info, nullptr, &vk_texture_image_view) != VK_SUCCESS) {
+	if (vkCreateImageView(graphics::internal::context.device, &view_info, nullptr, &tex.image_view) != VK_SUCCESS) {
 		std::cerr << "Failed to create texture image view\n";
 		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
 		return false;
 	}
 
-	//создаём VkSampler
+	vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
+
+	textures.push_back(tex);
+
+	std::cout << "Texture loaded: " << name << " (" << tex_width << "x" << tex_height << ")\n";
+	return true;
+}
+
+bool createTextureSampler() {
 	const VkSamplerCreateInfo sampler_info = {
 		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 		.magFilter = VK_FILTER_LINEAR,
@@ -854,14 +891,9 @@ bool createTextureFromFile(const char* filename) {
 
 	if (vkCreateSampler(graphics::internal::context.device, &sampler_info, nullptr, &vk_texture_sampler) != VK_SUCCESS) {
 		std::cerr << "Failed to create texture sampler\n";
-		vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
 		return false;
 	}
-
-	//уничтожаем staging buffer
-	vmaDestroyBuffer(graphics::internal::context.allocator, staging_buffer, staging_buffer_allocation);
-
-	std::cout << "Texture loaded successfully: " << tex_width << "x" << tex_height << '\n';
+	std::cout << "Texture Sampler created successfully\n";
 	return true;
 }
 
@@ -937,52 +969,57 @@ bool createTextureDescriptorSetLayout() {
 	return true;
 }
 
-bool createTextureDescriptorSet() {
-	const VkDescriptorSetAllocateInfo alloc_info = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-		.descriptorPool = vk_descriptor_pool,
-		.descriptorSetCount = 1,
-		.pSetLayouts = &vk_texture_descriptor_set_layout,
-	};
+bool createTextureDescriptorSets() {
+	for (auto& tex : textures) {
+		const VkDescriptorSetAllocateInfo alloc_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = vk_descriptor_pool,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &vk_texture_descriptor_set_layout,
+		};
 
-	if (vkAllocateDescriptorSets(graphics::internal::context.device, &alloc_info, &vk_texture_descriptor_set) != VK_SUCCESS) {
-		std::cerr << "Failed to allocate texture descriptor set\n";
-		return false;
+		if (vkAllocateDescriptorSets(graphics::internal::context.device, &alloc_info, &tex.descriptor_set) != VK_SUCCESS) {
+			std::cerr << "Failed to allocate descriptor set for texture: " << tex.name << '\n';
+			return false;
+		}
+
+		const VkDescriptorImageInfo image_info = {
+			.sampler = vk_texture_sampler,
+			.imageView = tex.image_view,
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
+		const VkWriteDescriptorSet descriptor_write = {
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = tex.descriptor_set,
+			.dstBinding = 0,
+			.dstArrayElement = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 1,
+			.pImageInfo = &image_info,
+		};
+
+		vkUpdateDescriptorSets(graphics::internal::context.device, 1, &descriptor_write, 0, nullptr);
 	}
 
-	const VkDescriptorImageInfo image_info = {
-		.sampler = vk_texture_sampler,
-		.imageView = vk_texture_image_view,
-		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-	};
-
-	const VkWriteDescriptorSet descriptor_write = {
-		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = vk_texture_descriptor_set,
-		.dstBinding = 0,
-		.dstArrayElement = 0,
-		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-		.descriptorCount = 1,
-		.pImageInfo = &image_info,
-	};
-
-	vkUpdateDescriptorSets(graphics::internal::context.device, 1, &descriptor_write, 0, nullptr);
-	std::cout << "Texture Descriptor Set created successfully\n";
+	std::cout << "Texture Descriptor Sets created: " << textures.size() << "\n";
 	return true;
 }
 
 bool createDescriptorPool() {
+	const uint32_t texture_count = uint32_t(textures.size());
+
 	const VkDescriptorPoolSize pool_sizes[] = {
 		{ .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 2 },
-		{ .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 2 }, 
-		{ .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 1 } 
+		{ .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 2 },
+		{ .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = texture_count }
 	};
 
 	const VkDescriptorPoolCreateInfo pool_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 		.poolSizeCount = 3,
 		.pPoolSizes = pool_sizes,
-		.maxSets = 3,
+		.maxSets = 2 + texture_count,  // 2 (Scene, Model) + по одному на текстуру
 	};
 
 	if (vkCreateDescriptorPool(graphics::internal::context.device, &pool_info, nullptr, &vk_descriptor_pool) != VK_SUCCESS) {
@@ -1108,29 +1145,36 @@ bool initialize() {
 	if (!createPointLightsBuffer()) return false;
 	if (!createSpotLightsBuffer()) return false;
 
-	
+	// ← СНАЧАЛА загружаем все текстуры
+	if (!createTextureSampler()) {
+		std::cerr << "Failed to create texture sampler\n";
+		return false;
+	}
 
+	if (!createTextureFromFile("textures/dog.png", "Dog")) {
+		std::cerr << "Failed to load dog texture\n";
+		return false;
+	}
+	if (!createTextureFromFile("textures/texture.jpeg", "Texture")) {
+		std::cerr << "Failed to load texture\n";
+		return false;
+	}
+	if (!createTextureFromFile("textures/water.jpg", "Water")) {
+		std::cerr << "Failed to load water texture\n";
+		return false;
+	}
+
+	// ← ТЕПЕРЬ создаём descriptor pool (textures.size() = 3)
 	if (!createDescriptorPool()) {
 		std::cerr << "Failed to create descriptor pool\n";
 		return false;
 	}
-
 	if (!createDescriptorSets()) {
 		std::cerr << "Failed to create descriptor sets\n";
 		return false;
 	}
-
-	
-
-	//загружаем текстуру (создаёт image, view, sampler)
-	if (!createTextureFromFile("textures/texture.jpeg")) {
-		std::cerr << "Failed to create texture from file\n";
-		return false;
-	}
-
-	//создаём descriptor set для текстуры (теперь, когда image view и sampler готовы)
-	if (!createTextureDescriptorSet()) {
-		std::cerr << "Failed to create texture descriptor set\n";
+	if (!createTextureDescriptorSets()) {
+		std::cerr << "Failed to create texture descriptor sets\n";
 		return false;
 	}
 
@@ -1164,8 +1208,11 @@ void shutdown() {
 	vmaDestroyBuffer(context.allocator, vk_spot_lights_buffer, vma_spot_lights_buffer_allocation);
 
 	vkDestroySampler(context.device, vk_texture_sampler, nullptr);
-	vkDestroyImageView(context.device, vk_texture_image_view, nullptr);
-	vmaDestroyImage(context.allocator, vk_texture_image, vma_texture_image_allocation);
+		// ← Уничтожаем все текстуры
+	for (auto& tex : textures) {
+			vkDestroyImageView(context.device, tex.image_view, nullptr);
+			vmaDestroyImage(context.allocator, tex.image, tex.allocation);
+		}
 	vkDestroyDescriptorSetLayout(context.device, vk_texture_descriptor_set_layout, nullptr);
 	vkDestroyCommandPool(context.device, vk_texture_command_pool, nullptr);
 }
@@ -1213,6 +1260,23 @@ void update([[maybe_unused]] double time) {
 	ImGui::Text("Material");
 	ImGui::ColorEdit3("Specular", material_specular);
 	ImGui::SliderFloat("Shininess", &material_shininess, 1.0f, 256.0f);
+
+	ImGui::Separator();
+	ImGui::Text("Tricky Sampling");
+	ImGui::Checkbox("Enable tricky sampling", &use_tricky_sampling);
+
+	ImGui::Separator();
+	ImGui::Text("Texture");
+
+	std::vector<const char*> texture_names;
+	for (auto& tex : textures) {
+		texture_names.push_back(tex.name.c_str());
+	}
+
+	ImGui::SetNextItemWidth(300.0f);
+	if (ImGui::Combo("Select", &current_texture_index,
+	                 texture_names.data(), int(texture_names.size()))) {
+	}
 
 	ImGui::Separator();
 	ImGui::Text("Point Lights");
@@ -1297,6 +1361,8 @@ void update([[maybe_unused]] double time) {
 	if (is_animating) {
 		animation_time += float(delta_time) * animation_speed;
 	}
+
+	effect_time += float(delta_time);
 
 	SceneUBO scene_ubo{};
 	ModelUBO model_ubo{};
@@ -1400,12 +1466,24 @@ void render(const graphics::internal::FrameData& fd) {
 
 	vkCmdBindPipeline(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
 
-	const VkDescriptorSet sets[] = { vk_scene_descriptor_set, vk_model_descriptor_set, vk_texture_descriptor_set };
+	const VkDescriptorSet sets[] = {
+		vk_scene_descriptor_set,
+		vk_model_descriptor_set,
+		textures[current_texture_index].descriptor_set
+	};
 	vkCmdBindDescriptorSets(fd.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline_layout, 0, 3, sets, 0, nullptr);
 
 	const VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(fd.command_buffer, 0, 1, &vk_vertex_buffer, offsets);
 	vkCmdBindIndexBuffer(fd.command_buffer, vk_index_buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	PushConstants pc{};
+	pc.time = effect_time;
+	pc.useTricky = use_tricky_sampling ? 1u : 0u;
+	vkCmdPushConstants(fd.command_buffer, vk_pipeline_layout,
+	                   VK_SHADER_STAGE_FRAGMENT_BIT,
+	                   0, sizeof(PushConstants), &pc);
+
 	vkCmdDrawIndexed(fd.command_buffer, index_count, 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(fd.command_buffer);

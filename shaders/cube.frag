@@ -42,6 +42,11 @@ layout(set = 1, binding = 0) uniform ModelUBO {
 
 layout(set = 2, binding = 0) uniform sampler2D albedoSampler;
 
+layout(push_constant) uniform PushConstants {
+    float time;
+    uint  useTricky;
+} pc;
+
 void main() {
     vec3 N = normalize(fragNormal);
     vec3 V = normalize(scene.cameraPos.xyz - fragPos);
@@ -50,7 +55,28 @@ void main() {
         N = -N;
     }
 
-    vec3 albedo = texture(albedoSampler, fragUV).rgb;
+        vec3 albedo;
+    if (pc.useTricky != 0u) {
+        // множественное сэмплирование разными UV
+        vec2 uv1 = fragUV + vec2(sin(pc.time) * 0.15, cos(pc.time) * 0.15);
+        vec2 uv2 = fragUV * 2.0 + vec2(pc.time * 0.1, -pc.time * 0.1);
+        vec2 uv3 = fragUV * 3.0 + vec2(-pc.time * 0.05, pc.time * 0.07);
+
+        vec3 s1 = texture(albedoSampler, uv1).rgb;
+        vec3 s2 = texture(albedoSampler, uv2).rgb;
+        vec3 s3 = texture(albedoSampler, uv3).rgb;
+
+        // модуляция цвета, зависящая от времени и UV
+        vec3 modulation = vec3(
+            0.5 + 0.5 * sin(pc.time * 2.0 + fragUV.x * 10.0),
+            0.5 + 0.5 * sin(pc.time * 2.3 + fragUV.y * 10.0),
+            0.5 + 0.5 * sin(pc.time * 1.7 + (fragUV.x + fragUV.y) * 8.0)
+        );
+
+        albedo = (s1 + s2 + s3) / 3.0 * modulation;
+    } else {
+        albedo = texture(albedoSampler, fragUV).rgb;
+    }
 
     float shininess = model_ubo.albedo.w;
 
